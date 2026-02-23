@@ -1,0 +1,15 @@
+{
+    "name": "paper-planes",
+    "version": "0.1.0",
+    "description": "The feature-limited airport simulator for CS261 – the module that everypony loves.",
+    "private": true,
+    "main": "index.js",
+    "directories": {
+        "doc": "docs"
+    },
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "keywords": [],
+    "author": ""
+}
