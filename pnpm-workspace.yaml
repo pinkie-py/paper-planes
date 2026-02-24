@@ -1,3 +1,4 @@
 packages:
-    - web-client
-    - api
+    - 'web-client'
+    - 'api'
+    - 'infrastructure'
