@@ -1,8 +1,8 @@
 packages:
-  - web-client
-  - api
+    - web-client
+    - api
 
 onlyBuiltDependencies:
-  - '@nestjs/core'
-  - '@swc/core'
-  - sharp
+    - "@nestjs/core"
+    - "@swc/core"
+    - sharp
