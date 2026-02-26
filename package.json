@@ -8,7 +8,10 @@
         "doc": "docs"
     },
     "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1"
+        "test": "echo \"Error: no test specified\" && exit 1",
+        "start": "pnpm -r --parallel run start",
+        "start:dev": "pnpm -r --parallel run start:dev",
+        "start:debug": "pnpm -r --parallel run start:debug"
     },
     "keywords": [],
     "author": "",
