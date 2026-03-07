@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Header from "@/components/header"; 
 
 type MetricRow = {
   label: string;
@@ -87,51 +88,7 @@ export default function ResultsPage() {
         fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
       }}
     >
-      {/* Top bar (Dorset vibe - do we need this on this page?) */}
-      <header style={{ background: "#fff", borderBottom: `1px solid ${BORDER}` }}>
-        <div
-          style={{
-            maxWidth: 1100,
-            margin: "0 auto",
-            padding: "14px 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 16,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 8,
-                background: DS_BLUE,
-              }}
-            />
-            <div style={{ lineHeight: 1.1 }}>
-              <div style={{ fontWeight: 800, color: DS_BLUE }}>Paper Planes</div>
-              <div style={{ fontSize: 12, color: "#6b7280" }}>Airport simulation</div>
-            </div>
-          </div>
-
-          <nav style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <Link href="/" style={navLinkStyle}>Home</Link>
-            <Link href="/configure" style={navLinkStyle}>Configure</Link>
-            <Link
-              href="/results"
-              style={{
-                ...navLinkStyle,
-                background: DS_BLUE,
-                color: "#fff",
-              }}
-            >
-              Results
-            </Link>
-            <Link href="/compare" style={navLinkStyle}>Compare</Link>
-          </nav>
-        </div>
-      </header>
+      <Header />
 
       {/* Page content */}
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: 20 }}>
