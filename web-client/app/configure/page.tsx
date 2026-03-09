@@ -35,30 +35,35 @@ const Configure: React.FC = () => {
     );
   };
 
-  const handleLoadScenario = async () => {
+const handleLoadScenario = async () => {
     try {
-      // Package the form data along with the status of each runway
       const payload = {
-        ...formData,
-        runwayStatuses: Array.from({ length: displayCount }).map((_, i) => 
-          closedRunways.includes(i) ? 'Closed' : 'Available'
-        )
+        inboundFlowRate: Number(formData.inboundFlow) || 15, 
+        outboundFlowRate: Number(formData.outboundFlow) || 15,
+        durationMinutes: 1440, 
+        runways: Array.from({ length: displayCount }).map((_, i) => ({
+          id: `Runway 0${i + 1}`,
+          mode: "MIXED", 
+          status: closedRunways.includes(i) ? "RUNWAY_INSPECTION" : "AVAILABLE"
+        }))
       };
 
-      const response = await fetch('http://localhost:5000/load-scenario', {
+      const response = await fetch('http://localhost:3000/simulate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error('Failed to load scenario');
+      if (!response.ok) throw new Error('Failed to run scenario');
 
       const data = await response.json();
+      console.log("Backend Results:", data);
+      
       router.push('/simulation');
       
     } catch (err) {
       console.error(err);
-      alert("Make sure your backend is running on port 5000!");
+      alert("Make sure your backend is running on http://localhost:3000!");
     }
   };
 
