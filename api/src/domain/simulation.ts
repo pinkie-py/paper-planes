@@ -8,6 +8,7 @@ export class SimulationConfig {
   outboundFlowRate: number; 
   runways: { id: string; mode: RunwayMode; status: RunwayStatus }[];
   durationMinutes: number; 
+  runCount?: number; // NEW: Number of times to run the simulation
 }
 
 export class Simulation {

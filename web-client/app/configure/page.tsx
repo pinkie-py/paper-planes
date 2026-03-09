@@ -40,7 +40,8 @@ const handleLoadScenario = async () => {
       const payload = {
         inboundFlowRate: Number(formData.inboundFlow) || 15, 
         outboundFlowRate: Number(formData.outboundFlow) || 15,
-        durationMinutes: 1440, 
+        durationMinutes: 1440,
+        runCount: Number(formData.numRuns) || 1, // NEW: Include run count
         runways: Array.from({ length: displayCount }).map((_, i) => ({
           id: `Runway 0${i + 1}`,
           mode: "MIXED", 

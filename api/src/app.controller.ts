@@ -18,6 +18,8 @@ export class AppController {
         }
 
         payload.durationMinutes = payload.durationMinutes || 1440;
+        payload.runCount = payload.runCount || 1; // Default to 1 run
+
         return this.appService.runSimulation(payload);
     }
 }
