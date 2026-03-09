@@ -1,0 +1,112 @@
+[
+  {
+    "id": "SIM-1773094740572",
+    "timestamp": "2026-03-09T22:19:00.572Z",
+    "seed": {
+      "inboundFlowRate": 15,
+      "outboundFlowRate": 15,
+      "runCount": 3
+    },
+    "statistics": {
+      "perRunResults": [],
+      "aggregatedResults": {
+        "averageDelayMins": {
+          "mean": 12.5,
+          "stdDev": 2.1
+        }
+      }
+    }
+  },
+  {
+    "id": "SIM-1773095456293",
+    "timestamp": "2026-03-09T22:30:56.293Z",
+    "seed": {
+      "inboundFlowRate": 20,
+      "outboundFlowRate": 13,
+      "durationMinutes": 1440,
+      "runCount": 3,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "RUNWAY_INSPECTION"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 03",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 04",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 05",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "statistics": {
+      "perRunResults": [
+        {
+          "totalProcessed": 782,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.010230179028132993,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        },
+        {
+          "totalProcessed": 766,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.015665796344647518,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        },
+        {
+          "totalProcessed": 731,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.012311901504787962,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        }
+      ],
+      "aggregatedResults": {
+        "totalProcessed": {
+          "mean": 759.67,
+          "stdDev": 26.08
+        },
+        "diverted": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "cancelled": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "averageDelayMins": {
+          "mean": 0.01,
+          "stdDev": 0
+        },
+        "holdingQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "takeoffQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        }
+      }
+    }
+  }
+]
