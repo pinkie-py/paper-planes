@@ -26,6 +26,8 @@ function mkRun(seed: string): RunResult {
         finalState: AircraftState.EXITED,
         holdingMinutes: 0,
         takeoffQueueMinutes: 0,
+        scheduledMinute: 10,
+        actualMinute: 8, // early -> delay = 0
         emergencyStatus: EmergencyStatus.NONE,
       },
       {
@@ -34,6 +36,8 @@ function mkRun(seed: string): RunResult {
         finalState: AircraftState.DIVERTED,
         holdingMinutes: 12,
         takeoffQueueMinutes: 0,
+        scheduledMinute: 20,
+        actualMinute: 32, // delay = 12
         emergencyStatus: EmergencyStatus.FUEL,
       },
       {
@@ -42,6 +46,8 @@ function mkRun(seed: string): RunResult {
         finalState: AircraftState.CANCELLED,
         holdingMinutes: 0,
         takeoffQueueMinutes: 7,
+        scheduledMinute: 30,
+        actualMinute: 40, // delay = 10
         emergencyStatus: EmergencyStatus.NONE,
       },
       {
@@ -50,6 +56,8 @@ function mkRun(seed: string): RunResult {
         finalState: AircraftState.EXITED,
         holdingMinutes: 0,
         takeoffQueueMinutes: 3,
+        scheduledMinute: 50,
+        actualMinute: 55, // delay = 5
         emergencyStatus: EmergencyStatus.NONE,
       },
     ],
@@ -69,7 +77,7 @@ describe("ResultsService", () => {
     expect(byLabel["Fuel Emergency Events"]).toEqual([1]);
     expect(byLabel["Aircraft Diversions"]).toEqual([1]);
     expect(byLabel["Cancellations"]).toEqual([1]);
-    expect(byLabel["Avg Delay / mins"][0]).toBeCloseTo(5.5, 6);
+    expect(byLabel["Avg Delay / mins"][0]).toBeCloseTo(6.75, 6);
     expect(byLabel["Aircraft Processed"]).toEqual([2]);
   });
 });

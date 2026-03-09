@@ -36,8 +36,10 @@ export function computeMetrics(run: RunResult): MetricsSummary {
   const avgTakeoffWait = mean(outboundQueueTimes);
   const maxTakeoffWait = max(outboundQueueTimes);
 
+  // New delay definition:
+  // delay = max(0, actualMinute - scheduledMinute)
   const delays = run.aircraft.map((a) =>
-    a.flightType === FlightType.INBOUND ? a.holdingMinutes : a.takeoffQueueMinutes,
+    Math.max(0, a.actualMinute - a.scheduledMinute),
   );
   const avgDelay = mean(delays);
   const maxDelay = max(delays);

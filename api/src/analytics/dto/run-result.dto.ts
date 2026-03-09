@@ -12,8 +12,15 @@ export interface AircraftOutcome {
   aircraftId: string;
   flightType: FlightType;
   finalState: AircraftState;
+
+  // Waiting-time metrics
   holdingMinutes: number;
   takeoffQueueMinutes: number;
+
+  // Delay metrics: delay = max(0, actualMinute - scheduledMinute)
+  scheduledMinute: number;
+  actualMinute: number;
+
   emergencyStatus: EmergencyStatus;
 }
 

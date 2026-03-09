@@ -26,6 +26,8 @@ function mkRun(seed: string, holdingMinutesA2: number, processedCountVariant = 0
         finalState: AircraftState.EXITED,
         holdingMinutes: 0,
         takeoffQueueMinutes: 0,
+        scheduledMinute: 10,
+        actualMinute: 8, // early -> delay = 0
         emergencyStatus: EmergencyStatus.NONE,
       },
       {
@@ -34,6 +36,8 @@ function mkRun(seed: string, holdingMinutesA2: number, processedCountVariant = 0
         finalState: AircraftState.DIVERTED,
         holdingMinutes: holdingMinutesA2,
         takeoffQueueMinutes: 0,
+        scheduledMinute: 20,
+        actualMinute: 20 + holdingMinutesA2, // delay = holdingMinutesA2
         emergencyStatus: EmergencyStatus.FUEL,
       },
       {
@@ -42,6 +46,8 @@ function mkRun(seed: string, holdingMinutesA2: number, processedCountVariant = 0
         finalState: AircraftState.CANCELLED,
         holdingMinutes: 0,
         takeoffQueueMinutes: 7,
+        scheduledMinute: 30,
+        actualMinute: 40, // delay = 10
         emergencyStatus: EmergencyStatus.NONE,
       },
       {
@@ -51,6 +57,8 @@ function mkRun(seed: string, holdingMinutesA2: number, processedCountVariant = 0
           processedCountVariant === 0 ? AircraftState.EXITED : AircraftState.CANCELLED,
         holdingMinutes: 0,
         takeoffQueueMinutes: 3,
+        scheduledMinute: 50,
+        actualMinute: 55, // delay = 5
         emergencyStatus: EmergencyStatus.NONE,
       },
     ],
@@ -80,22 +88,26 @@ describe("formatResultsResponse", () => {
       "Aircraft Diversions",
       "Cancellations",
       "Avg Landing Queue size",
+      "Max Landing Queue size",
       "Avg Take-Off Queue size",
+      "Max Take-Off Queue size",
       "Avg Waiting Time (arrival) / mins",
+      "Max Waiting Time (arrival) / mins",
       "Avg Waiting Time (departure) / mins",
+      "Max Waiting Time (departure) / mins",
       "Avg Delay / mins",
+      "Max Delay / mins",
       "Aircraft Processed",
     ]);
   });
 
   it("formats metric values across multiple runs", () => {
     const runs = [
-      mkRun("seed-1", 12, 0), // processed count = 2
-      mkRun("seed-2", 10, 1), // processed count = 1
+      mkRun("seed-1", 12, 0), // delays: [0,12,10,5] -> avg 6.75, max 12
+      mkRun("seed-2", 10, 1), // delays: [0,10,10,5] -> avg 6.25, max 10
     ];
 
     const result = formatResultsResponse(runs);
-
     const byLabel = Object.fromEntries(result.rows.map((r) => [r.label, r.values]));
 
     expect(byLabel["Fuel Emergency Events"]).toEqual([1, 1]);
@@ -105,8 +117,19 @@ describe("formatResultsResponse", () => {
     expect(byLabel["Avg Landing Queue size"][0]).toBeCloseTo(0.8, 6);
     expect(byLabel["Avg Landing Queue size"][1]).toBeCloseTo(0.8, 6);
 
+    expect(byLabel["Max Landing Queue size"]).toEqual([2, 2]);
+
     expect(byLabel["Avg Waiting Time (arrival) / mins"][0]).toBeCloseTo(6, 6);
     expect(byLabel["Avg Waiting Time (arrival) / mins"][1]).toBeCloseTo(5, 6);
+
+    expect(byLabel["Max Waiting Time (arrival) / mins"]).toEqual([12, 10]);
+
+    expect(byLabel["Max Waiting Time (departure) / mins"]).toEqual([7, 7]);
+
+    expect(byLabel["Avg Delay / mins"][0]).toBeCloseTo(6.75, 6);
+    expect(byLabel["Avg Delay / mins"][1]).toBeCloseTo(6.25, 6);
+
+    expect(byLabel["Max Delay / mins"]).toEqual([12, 10]);
 
     expect(byLabel["Aircraft Processed"]).toEqual([2, 1]);
   });

@@ -1,5 +1,3 @@
-// api/src/analytics/metrics/results-formatter.ts
-
 import type { RunResult } from "../dto/run-result.dto";
 import type {
   MetricRow,
@@ -42,20 +40,40 @@ function buildMetricRows(metrics: MetricsSummary[]): MetricRow[] {
       values: metrics.map((m) => m.queue.avgHoldingSize),
     },
     {
+      label: "Max Landing Queue size",
+      values: metrics.map((m) => m.queue.maxHoldingSize),
+    },
+    {
       label: "Avg Take-Off Queue size",
       values: metrics.map((m) => m.queue.avgTakeoffQueueSize),
+    },
+    {
+      label: "Max Take-Off Queue size",
+      values: metrics.map((m) => m.queue.maxTakeoffQueueSize),
     },
     {
       label: "Avg Waiting Time (arrival) / mins",
       values: metrics.map((m) => m.time.avgHoldingTime),
     },
     {
+      label: "Max Waiting Time (arrival) / mins",
+      values: metrics.map((m) => m.time.maxHoldingTime),
+    },
+    {
       label: "Avg Waiting Time (departure) / mins",
       values: metrics.map((m) => m.time.avgTakeoffWait),
     },
     {
+      label: "Max Waiting Time (departure) / mins",
+      values: metrics.map((m) => m.time.maxTakeoffWait),
+    },
+    {
       label: "Avg Delay / mins",
       values: metrics.map((m) => m.time.avgDelay),
+    },
+    {
+      label: "Max Delay / mins",
+      values: metrics.map((m) => m.time.maxDelay),
     },
     {
       label: "Aircraft Processed",
@@ -63,7 +81,6 @@ function buildMetricRows(metrics: MetricsSummary[]): MetricRow[] {
     },
   ];
 }
-
 
 export function formatResultsResponseFromMetrics(
   runs: RunResult[],
@@ -89,9 +106,6 @@ export function formatResultsResponseFromMetrics(
   };
 }
 
-/**
- * compute metrics first, then format for UI.
- */
 export function formatResultsResponse(runs: RunResult[]): ResultsResponse {
   const metrics = runs.map((run) => computeMetrics(run));
   return formatResultsResponseFromMetrics(runs, metrics);
