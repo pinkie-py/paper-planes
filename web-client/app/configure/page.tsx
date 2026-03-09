@@ -41,7 +41,8 @@ const handleLoadScenario = async () => {
         inboundFlowRate: Number(formData.inboundFlow) || 15, 
         outboundFlowRate: Number(formData.outboundFlow) || 15,
         durationMinutes: 1440,
-        runCount: Number(formData.numRuns) || 1, // NEW: Include run count
+        runCount: Number(formData.numRuns) || 1,
+        seed: formData.seed || null, // Capture the seed if provided
         runways: Array.from({ length: displayCount }).map((_, i) => ({
           id: `Runway 0${i + 1}`,
           mode: "MIXED", 
@@ -60,7 +61,11 @@ const handleLoadScenario = async () => {
       const data = await response.json();
       console.log("Backend Results:", data);
       
-      router.push('/simulation');
+      // NEW: Save the live results to sessionStorage so the results page can read it
+      sessionStorage.setItem('latestSimulation', JSON.stringify(data));
+      
+      // NEW: Route to the results dashboard
+      router.push('/results');
       
     } catch (err) {
       console.error(err);
