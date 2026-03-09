@@ -1,0 +1,20 @@
+[
+  {
+    "id": "SIM-1773094740572",
+    "timestamp": "2026-03-09T22:19:00.572Z",
+    "seed": {
+      "inboundFlowRate": 15,
+      "outboundFlowRate": 15,
+      "runCount": 3
+    },
+    "statistics": {
+      "perRunResults": [],
+      "aggregatedResults": {
+        "averageDelayMins": {
+          "mean": 12.5,
+          "stdDev": 2.1
+        }
+      }
+    }
+  }
+]
