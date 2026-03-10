@@ -65,7 +65,7 @@ const handleLoadScenario = async () => {
       sessionStorage.setItem('latestSimulation', JSON.stringify(data));
       
       // NEW: Route to the results dashboard
-      router.push('/results');
+      router.push('/simulation');
       
     } catch (err) {
       console.error(err);
