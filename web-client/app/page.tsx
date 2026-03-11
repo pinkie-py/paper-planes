@@ -29,6 +29,7 @@ export default function HomePage() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#f6f8fb", fontFamily: 'sans-serif' }}>
+      
       <Header />
 
       <div style={{ textAlign: 'center', padding: '20px' }}>

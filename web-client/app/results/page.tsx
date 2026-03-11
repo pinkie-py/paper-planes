@@ -27,40 +27,43 @@ export default function ResultsPage() {
   }, []);
 
   if (!simData) {
+    const buttonStyle: React.CSSProperties = {
+      padding: '10px 20px',
+      cursor: 'pointer',
+      width: '200px',
+      fontWeight: '600',
+      background: '#fff',
+      border: `1px solid ${BORDER}`,
+      color: TEXT,
+      borderRadius: '4px'
+    };
+
     return (
-      <div
-        style={{
-          minHeight: "100vh",
-          background: LIGHT_BG,
-          color: TEXT,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          paddingTop: "100px",
-        }}
-      >
+      <div style={{ minHeight: "100vh", background: LIGHT_BG, fontFamily: 'sans-serif' }}>
         <Header />
-        <h2 style={{ fontSize: 24, marginBottom: 20 }}>
-          No simulation data found.
-        </h2>
-        <p style={{ marginBottom: 20 }}>
-          Please configure and run a scenario first.
-        </p>
-        <Link href="/configure">
-          <button
-            style={{
-              padding: "12px 24px",
-              background: DS_BLUE,
-              color: "#fff",
-              borderRadius: 8,
-              fontWeight: 700,
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            Go to Configurator
-          </button>
-        </Link>
+        
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <header style={{ marginTop: '20px' }}>
+            <h1 style={{ color: DS_BLUE, margin: '0 0 10px' }}>Airport simulation</h1>
+            <h2 style={{ fontWeight: '400', fontSize: '18px' }}>No simulation data found</h2>
+          </header>
+
+          <main style={{ marginTop: '40px', display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
+            <p style={{ color: "#6b7280", marginBottom: "10px" }}>
+              Please configure and run a scenario first to view results.
+            </p>
+            <Link href="/configure">
+              <button style={{ ...buttonStyle, background: DS_BLUE, color: '#fff', border: 'none' }}>
+                Back to configure
+              </button>
+            </Link>
+            <Link href="/">
+              <button style={buttonStyle}>
+                Back to Home
+              </button>
+            </Link>
+          </main>
+        </div>
       </div>
     );
   }
