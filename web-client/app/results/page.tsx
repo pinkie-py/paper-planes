@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/header";
+import CompareButton from "@/components/compare_button";
 
 const DS_BLUE = "#004696";
 const TEXT = "#1f2937";
@@ -482,7 +483,7 @@ export default function ResultsPage() {
             </button>
           </Link>
 
-          <Link href="/compare">
+          {/* <Link href="/compare">
             <button
               style={{
                 padding: "12px 18px",
@@ -496,7 +497,17 @@ export default function ResultsPage() {
             >
               Compare Scenarios
             </button>
-          </Link>
+          </Link> */}
+
+          <CompareButton style={{
+            padding: "12px 18px",
+            cursor: "pointer",
+            border: `1px solid ${BORDER}`,
+            borderRadius: 8,
+            background: "#fff",
+            color: TEXT,
+            fontWeight: 700,
+          }} />
 
           <button
             onClick={handleSaveResults}

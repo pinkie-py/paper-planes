@@ -1569,5 +1569,71 @@
         }
       }
     }
+  },
+  {
+    "id": "SIM-1773229356980",
+    "timestamp": "2026-03-11T11:42:36.980Z",
+    "seed": {
+      "inboundFlowRate": 15,
+      "outboundFlowRate": 15,
+      "durationMinutes": 60,
+      "runCount": 1,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 03",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "statistics": {
+      "perRunResults": [
+        {
+          "totalProcessed": 32,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.15625,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        }
+      ],
+      "aggregatedResults": {
+        "totalProcessed": {
+          "mean": 32,
+          "stdDev": 0
+        },
+        "diverted": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "cancelled": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "averageDelayMins": {
+          "mean": 0.16,
+          "stdDev": 0
+        },
+        "holdingQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "takeoffQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        }
+      }
+    }
   }
 ]
