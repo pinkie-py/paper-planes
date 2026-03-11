@@ -13,7 +13,11 @@ const PANEL_BG = "#eef2f6";
 
 // ----------------- types (frontend) -----------------
 type FlightType = "INBOUND" | "OUTBOUND";
-type EmergencyStatus = "NONE" | "FUEL" | "MECHANICAL_FAILURE" | "PASSENGER_HEALTH";
+type EmergencyStatus =
+  | "NONE"
+  | "FUEL"
+  | "MECHANICAL_FAILURE"
+  | "PASSENGER_HEALTH";
 type AircraftState =
   | "ENTERING_SIM"
   | "HOLDING"
@@ -24,54 +28,55 @@ type AircraftState =
   | "DIVERTED";
 
 type RunwayMode = "LANDING" | "TAKEOFF" | "MIXED";
-type RunwayStatus = "AVAILABLE" | "OCCUPIED" | "RUNWAY_INSPECTION" | "SNOW_CLEARANCE" | "EQUIPMENT_FAILURE";
+type RunwayStatus =
+  | "AVAILABLE"
+  | "OCCUPIED"
+  | "RUNWAY_INSPECTION"
+  | "SNOW_CLEARANCE"
+  | "EQUIPMENT_FAILURE";
 
 type AircraftRow = {
-  aircraftID: string; // callsign
+  aircraftID: string;
   type: FlightType;
   state: AircraftState;
   emergencyStatus: EmergencyStatus;
-  fuelRemainingMins: number; // inbound/holding
-  waitSeconds: number; // outbound/takeoff queue
+  fuelRemainingMins: number;
+  waitSeconds: number;
 };
 
 type RunwayRow = {
-  runwayNumber: string; // "01", "02", ...
+  runwayNumber: string;
   mode: RunwayMode;
   status: RunwayStatus;
-
   occupiedBy: string | null;
   currentAction: "Landing" | "Take-off" | "--";
   timeRemainingSeconds: number | null;
-
-  // visual position for plane sprite (0..100)
   planePosPct: number | null;
 };
 
 type LogEntry = {
-  at: string; // "01:04"
+  at: string;
   message: string;
 };
 
 type SimulationState = {
   scenarioName: string;
   seed: number | null;
-  runIndex: number; // 1-based
+  runIndex: number;
   runCountTotal: number;
   elapsedSeconds: number;
-
   runways: RunwayRow[];
   holding: AircraftRow[];
   takeoff: AircraftRow[];
   log: LogEntry[];
 };
 
-// ----------------- types (backend request/response) -----------------
 type SimulationConfig = {
   inboundFlowRate: number;
   outboundFlowRate: number;
   durationMinutes: number;
   runCount?: number;
+  seed?: number | null;
   runways: { id: string; mode: RunwayMode; status: RunwayStatus }[];
 };
 
@@ -82,8 +87,26 @@ type SimulateResponse = {
   aggregatedResults: any;
 };
 
+type LiveStartResponse = {
+  status: string;
+  simId: string;
+  finished: boolean;
+  snapshot: SimulationState;
+};
+
+type LiveTickResponse = {
+  status: string;
+  simId: string;
+  finished: boolean;
+  snapshot: SimulationState;
+  configurationUsed?: SimulationConfig;
+  perRunResults?: any[];
+  aggregatedResults?: any;
+};
+
 // ----------------- helpers -----------------
 const pad2 = (n: number) => String(n).padStart(2, "0");
+
 const fmtMMSS = (totalSeconds: number) => {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
@@ -135,49 +158,26 @@ const modeLabel = (m: RunwayMode) => {
   }
 };
 
-// ----------------- mock initial visual state -----------------
 const initialMockState: SimulationState = {
-  scenarioName: "Example Scenario",
+  scenarioName: "Configured Scenario",
   seed: null,
   runIndex: 1,
-  runCountTotal: 3,
+  runCountTotal: 1,
   elapsedSeconds: 0,
-  runways: [
-    {
-      runwayNumber: "01",
-      mode: "MIXED",
-      status: "AVAILABLE",
-      occupiedBy: null,
-      currentAction: "--",
-      timeRemainingSeconds: null,
-      planePosPct: null,
-    },
-    {
-      runwayNumber: "02",
-      mode: "MIXED",
-      status: "AVAILABLE",
-      occupiedBy: null,
-      currentAction: "--",
-      timeRemainingSeconds: null,
-      planePosPct: null,
-    },
-    {
-      runwayNumber: "03",
-      mode: "MIXED",
-      status: "AVAILABLE",
-      occupiedBy: null,
-      currentAction: "--",
-      timeRemainingSeconds: null,
-      planePosPct: null,
-    },
-  ],
+  runways: buildDefaultRunways(3).map((r) => ({
+    runwayNumber: extractRunwayNumber(r.id),
+    mode: r.mode,
+    status: r.status,
+    occupiedBy: null,
+    currentAction: "--",
+    timeRemainingSeconds: null,
+    planePosPct: null,
+  })),
   holding: [],
   takeoff: [],
   log: [],
 };
 
-// Try to load a config created on the configure page.
-// Put whatever your configure page saves into sessionStorage/localStorage as JSON.
 function loadConfigFromStorage(): SimulationConfig | null {
   if (typeof window === "undefined") return null;
 
@@ -185,20 +185,20 @@ function loadConfigFromStorage(): SimulationConfig | null {
   for (const k of keys) {
     const raw = sessionStorage.getItem(k) ?? localStorage.getItem(k);
     if (!raw) continue;
+
     try {
       const parsed = JSON.parse(raw);
-      // super lightweight validation:
-      if (typeof parsed?.inboundFlowRate === "number" && typeof parsed?.outboundFlowRate === "number") return parsed;
+      return normalizeStoredConfig(parsed);
     } catch {
-      // ignore
+      // ignore invalid JSON and keep looking
     }
   }
+
   return null;
 }
 
 function deriveVisualRunwaysFromConfig(config: SimulationConfig): RunwayRow[] {
   return (config.runways ?? []).map((r) => {
-    // try to extract "01" from "Runway 01", else keep whole id
     const match = String(r.id).match(/(\d{2})$/);
     const runwayNumber = match ? match[1] : String(r.id);
 
@@ -214,67 +214,107 @@ function deriveVisualRunwaysFromConfig(config: SimulationConfig): RunwayRow[] {
   });
 }
 
+function buildDefaultRunways(count: number) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `Runway ${String(i + 1).padStart(2, "0")}`,
+    mode: "MIXED" as RunwayMode,
+    status: "AVAILABLE" as RunwayStatus,
+  }));
+}
+
+function extractRunwayNumber(id: string) {
+  const match = String(id).match(/(\d{2})$/);
+  return match ? match[1] : String(id);
+}
+
+function normalizeStoredConfig(raw: any): SimulationConfig {
+  const inboundFlowRate = Number(raw?.inboundFlowRate ?? raw?.inboundFlow ?? 15);
+  const outboundFlowRate = Number(raw?.outboundFlowRate ?? raw?.outboundFlow ?? 15);
+  const durationMinutes = Number(raw?.durationMinutes ?? raw?.duration ?? 60);
+  const runCount = Number(raw?.runCount ?? raw?.numRuns ?? 1);
+  const seed = raw?.seed ?? null;
+
+  let runways: { id: string; mode: RunwayMode; status: RunwayStatus }[] = [];
+
+  if (Array.isArray(raw?.runways)) {
+    runways = raw.runways.map((r: any, index: number) => ({
+      id: String(r?.id ?? `Runway ${String(index + 1).padStart(2, "0")}`),
+      mode: (r?.mode ?? "MIXED") as RunwayMode,
+      status: (r?.status ?? "AVAILABLE") as RunwayStatus,
+    }));
+  } else {
+    const runwayCount = Number(raw?.runways ?? raw?.runwayCount ?? raw?.numRunways ?? 3);
+    runways = buildDefaultRunways(Math.max(1, runwayCount));
+  }
+
+  return {
+    inboundFlowRate,
+    outboundFlowRate,
+    durationMinutes,
+    runCount,
+    seed,
+    runways,
+  };
+}
+
+function buildFallbackConfig(): SimulationConfig {
+  return {
+    inboundFlowRate: 15,
+    outboundFlowRate: 15,
+    durationMinutes: 60,
+    runCount: 3,
+    seed: null,
+    runways: buildDefaultRunways(3),
+  };
+}
+
 export default function SimulationPage() {
   const router = useRouter();
-
-  // backend base
   const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
-  // visual simulation state (playback)
   const [sim, setSim] = useState<SimulationState>(initialMockState);
-
-  // UI toggles
   const [showVisual, setShowVisual] = useState(true);
-
-  // Runway edits (draft)
-  const [draftRunways, setDraftRunways] = useState<Record<string, { mode: RunwayMode; status: RunwayStatus }>>({});
-
-  // backend integration state
-  const [phase, setPhase] = useState<"idle" | "running" | "finished" | "error">("idle");
+  const [phase, setPhase] = useState<"idle" | "running" | "finished" | "error">(
+    "idle"
+  );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [result, setResult] = useState<SimulateResponse | null>(null);
+  const [liveSimId, setLiveSimId] = useState<string | null>(null);
 
-  // slowing down: minimum preview duration so it can’t instantly disappear
-  const [minPreviewSeconds, setMinPreviewSeconds] = useState<number>(8);
-  const startedAtRef = useRef<number | null>(null);
+  const [draftRunways, setDraftRunways] = useState<
+    Record<string, { mode: RunwayMode; status: RunwayStatus }>
+  >({});
 
-  // ticker interval
-  const tickRef = useRef<number | null>(null);
-
-  // Load config on mount (so your simulation page matches what you configured)
   const configRef = useRef<SimulationConfig | null>(null);
+
   useEffect(() => {
-    const cfg = loadConfigFromStorage();
+    const cfg = loadConfigFromStorage() ?? buildFallbackConfig();
     configRef.current = cfg;
 
-    // set up visual initial state based on config
-    if (cfg?.runways?.length) {
-      const runways = deriveVisualRunwaysFromConfig(cfg);
-      setSim((prev) => ({
-        ...prev,
-        scenarioName: "Configured Scenario",
-        runCountTotal: cfg.runCount ?? 1,
-        runways,
-      }));
+    const runways = deriveVisualRunwaysFromConfig(cfg);
 
-      // initialise draft runways
-      const map: Record<string, { mode: RunwayMode; status: RunwayStatus }> = {};
-      for (const r of runways) map[r.runwayNumber] = { mode: r.mode, status: r.status };
-      setDraftRunways(map);
-    } else {
-      // fallback draft state
-      const map: Record<string, { mode: RunwayMode; status: RunwayStatus }> = {};
-      for (const r of initialMockState.runways) map[r.runwayNumber] = { mode: r.mode, status: r.status };
-      setDraftRunways(map);
+    setSim((prev) => ({
+      ...prev,
+      scenarioName: "Configured Scenario",
+      runCountTotal: cfg.runCount ?? 1,
+      seed: cfg.seed ?? null,
+      runways,
+    }));
+
+    const map: Record<string, { mode: RunwayMode; status: RunwayStatus }> = {};
+    for (const r of runways) {
+      map[r.runwayNumber] = { mode: r.mode, status: r.status };
     }
+    setDraftRunways(map);
   }, []);
 
-  // Keep draft in sync if runways list changes
   useEffect(() => {
     setDraftRunways((prev) => {
       const next = { ...prev };
       for (const r of sim.runways) {
-        if (!next[r.runwayNumber]) next[r.runwayNumber] = { mode: r.mode, status: r.status };
+        if (!next[r.runwayNumber]) {
+          next[r.runwayNumber] = { mode: r.mode, status: r.status };
+        }
       }
       return next;
     });
@@ -285,129 +325,89 @@ export default function SimulationPage() {
     return Math.min(100, Math.max(0, (sim.runIndex / sim.runCountTotal) * 100));
   }, [sim.runIndex, sim.runCountTotal]);
 
-  function stopTicker() {
-    if (tickRef.current != null) window.clearInterval(tickRef.current);
-    tickRef.current = null;
-  }
+  async function handleFinishNow() {
+    if (!liveSimId) return;
 
-  function startTicker() {
-    stopTicker();
-    tickRef.current = window.setInterval(() => {
-      setSim((prev) => {
-        const elapsedSeconds = prev.elapsedSeconds + 1;
-
-        // Runway visuals
-        const runways: RunwayRow[] = prev.runways.map((r) => {
-          // if runway closed, keep it empty visually
-          if (r.status === "SNOW_CLEARANCE" || r.status === "RUNWAY_INSPECTION" || r.status === "EQUIPMENT_FAILURE") {
-            return {
-              ...r,
-              occupiedBy: null,
-              currentAction: "--",
-              timeRemainingSeconds: null,
-              planePosPct: null,
-            };
-          }
-
-          // simple “occupancy” tick
-          if (r.status === "OCCUPIED" && r.timeRemainingSeconds != null) {
-            const t = Math.max(0, r.timeRemainingSeconds - 1);
-            const pos = r.planePosPct == null ? 50 : Math.min(95, r.planePosPct + 1.6);
-
-            if (t === 0) {
-              return {
-                ...r,
-                status: "AVAILABLE",
-                occupiedBy: null,
-                currentAction: "--",
-                timeRemainingSeconds: null,
-                planePosPct: null,
-              };
-            }
-            return { ...r, timeRemainingSeconds: t, planePosPct: pos };
-          }
-
-          // occasionally start an “operation” when available
-          if (r.status === "AVAILABLE" && Math.random() < 0.06) {
-            const isLanding = r.mode === "LANDING" || (r.mode === "MIXED" && Math.random() < 0.5);
-            const callsign = isLanding
-              ? `IN-${Math.floor(Math.random() * 90 + 10)}`
-              : `OUT-${Math.floor(Math.random() * 90 + 10)}`;
-
-            return {
-              ...r,
-              status: "OCCUPIED",
-              occupiedBy: callsign,
-              currentAction: isLanding ? "Landing" : "Take-off",
-              timeRemainingSeconds: Math.floor(Math.random() * 40 + 30),
-              planePosPct: Math.floor(Math.random() * 30 + 20),
-            };
-          }
-
-          return r;
-        });
-
-        // queue visuals
-        const takeoff = prev.takeoff.map((a) => ({ ...a, waitSeconds: a.waitSeconds + 1 }));
-        const holding = prev.holding.map((a) => {
-          const newFuel = Math.max(0, a.fuelRemainingMins - 0.02);
-          const newEmergency: EmergencyStatus =
-            newFuel <= 10 && a.emergencyStatus === "NONE" ? "FUEL" : a.emergencyStatus;
-          return { ...a, fuelRemainingMins: newFuel, emergencyStatus: newEmergency };
-        });
-
-        let log = prev.log;
-        if (elapsedSeconds % 10 === 0) {
-          const at = fmtMMSS(elapsedSeconds);
-          log = [{ at, message: "Visual tick (preview mode)" }, ...prev.log].slice(0, 12);
-        }
-
-        return { ...prev, elapsedSeconds, runways, takeoff, holding, log };
+    try {
+      const res = await fetch(`${API_BASE}/live/${liveSimId}/finish`, {
+        method: "POST",
       });
-    }, 1000);
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Finish failed: ${text}`);
+      }
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.snapshot) {
+        setSim(data.snapshot);
+      }
+
+      const finalPayload = {
+        status: "success",
+        configurationUsed: data.configurationUsed,
+        perRunResults: data.perRunResults ?? [],
+        aggregatedResults: data.aggregatedResults ?? {},
+      };
+
+      setResult(finalPayload as SimulateResponse);
+      sessionStorage.setItem("pp:lastResults", JSON.stringify(finalPayload));
+      setPhase("finished");
+
+      try {
+        await fetch(`${API_BASE}/save`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(finalPayload),
+        });
+      } catch {
+        // ignore save failure here
+      }
+    } catch (err: any) {
+      setPhase("error");
+      setErrorMsg(err?.message ?? "Failed to finish simulation");
+    }
   }
 
   async function runBackendSimulation() {
     setErrorMsg(null);
     setResult(null);
 
-    // Build config to send
-    const cfgFromStorage = configRef.current;
+    const baseConfig = configRef.current ?? buildFallbackConfig();
 
-    // If configure page didn’t store anything yet, we fall back to a sensible config
-    const config: SimulationConfig = cfgFromStorage ?? {
-      inboundFlowRate: 15,
-      outboundFlowRate: 15,
-      durationMinutes: 60,
-      runCount: 3,
-      runways: sim.runways.map((r) => ({
-        id: `Runway ${r.runwayNumber}`,
-        mode: draftRunways[r.runwayNumber]?.mode ?? r.mode,
-        status: draftRunways[r.runwayNumber]?.status ?? r.status,
-      })),
+    const config: SimulationConfig = {
+      ...baseConfig,
+      runways: baseConfig.runways.map((r) => {
+        const runwayNumber = extractRunwayNumber(r.id);
+        const draft = draftRunways[runwayNumber];
+
+        return {
+          id: r.id,
+          mode: draft?.mode ?? r.mode,
+          status: draft?.status ?? r.status,
+        };
+      }),
     };
 
-    // Reset visuals, start playback, start backend
-    startedAtRef.current = Date.now();
-    setPhase("running");
-    setSim((prev) => ({
-      ...prev,
-      elapsedSeconds: 0,
-      runIndex: 1,
-      runCountTotal: config.runCount ?? 1,
-      scenarioName: prev.scenarioName || "Scenario",
-      runways: deriveVisualRunwaysFromConfig(config),
-      holding: [],
-      takeoff: [],
-      log: [{ at: "00:00", message: "Simulation started" }],
-    }));
-
-    startTicker();
+    if (!config.runways.length) {
+      setPhase("error");
+      setErrorMsg("No runways configured.");
+      return;
+    }
 
     try {
-      const res = await fetch(`${API_BASE}/simulate`, {
+      const res = await fetch(`${API_BASE}/live/start`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(config),
       });
 
@@ -416,82 +416,149 @@ export default function SimulationPage() {
         throw new Error(`Backend error ${res.status}: ${text}`);
       }
 
-      const data = (await res.json()) as SimulateResponse;
-      setResult(data);
+      const data = (await res.json()) as LiveStartResponse;
 
-      // Save latest results for results page
-      sessionStorage.setItem("pp:lastResults", JSON.stringify(data));
-
-      // OPTIONAL: also persist on backend (your /save endpoint)
-      try {
-        await fetch(`${API_BASE}/save`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
-      } catch {
-        // don’t fail UI if save fails
+      if ((data as any).error) {
+        throw new Error((data as any).error);
       }
 
-      // ENFORCE “minimum preview time” so you can actually see the simulation
-      const startedAt = startedAtRef.current ?? Date.now();
-      const elapsedMs = Date.now() - startedAt;
-      const minMs = Math.max(0, minPreviewSeconds * 1000);
-
-      if (elapsedMs < minMs) {
-        await new Promise((r) => setTimeout(r, minMs - elapsedMs));
-      }
-
-      stopTicker();
-      setPhase("finished");
-      setSim((prev) => ({
-        ...prev,
-        log: [{ at: fmtMMSS(prev.elapsedSeconds), message: "Simulation finished (backend results ready)" }, ...prev.log].slice(
-          0,
-          12
-        ),
-      }));
+      setLiveSimId(data.simId);
+      setSim(data.snapshot);
+      setPhase("running");
     } catch (err: any) {
-      stopTicker();
       setPhase("error");
-      setErrorMsg(err?.message ?? "Unknown error");
+      setErrorMsg(err?.message ?? "Failed to start live simulation");
     }
   }
 
-  const handleApplyChanges = () => {
-    // NOTE: Your backend currently does not support live mid-run edits.
-    // This applies changes to the VISUALS only.
-    setSim((prev) => {
-      const updated = prev.runways.map((r) => {
-        const d = draftRunways[r.runwayNumber];
-        if (!d) return r;
+  useEffect(() => {
+    if (phase !== "running" || !liveSimId) return;
 
-        const closing =
-          d.status === "RUNWAY_INSPECTION" || d.status === "SNOW_CLEARANCE" || d.status === "EQUIPMENT_FAILURE";
+    const interval = window.setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/live/${liveSimId}/tick`, {
+          method: "POST",
+        });
 
-        return {
-          ...r,
-          mode: d.mode,
-          status: d.status,
-          occupiedBy: closing ? null : r.occupiedBy,
-          currentAction: closing ? "--" : r.currentAction,
-          timeRemainingSeconds: closing ? null : r.timeRemainingSeconds,
-          planePosPct: closing ? null : r.planePosPct,
-        };
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`Tick failed: ${text}`);
+        }
+
+        const data = (await res.json()) as LiveTickResponse;
+
+        if ((data as any).error) {
+          throw new Error((data as any).error);
+        }
+
+        if (data.snapshot) {
+          setSim(data.snapshot);
+        }
+
+        if (data.finished) {
+          const finalPayload = {
+            status: "success",
+            configurationUsed: data.configurationUsed,
+            perRunResults: data.perRunResults ?? [],
+            aggregatedResults: data.aggregatedResults ?? {},
+          };
+
+          setResult(finalPayload as SimulateResponse);
+          sessionStorage.setItem("pp:lastResults", JSON.stringify(finalPayload));
+          setPhase("finished");
+
+          try {
+            await fetch(`${API_BASE}/save`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(finalPayload),
+            });
+          } catch {
+            // ignore save errors
+          }
+
+          window.clearInterval(interval);
+        }
+      } catch (err: any) {
+        setPhase("error");
+        setErrorMsg(err?.message ?? "Live simulation polling failed");
+        window.clearInterval(interval);
+      }
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [phase, liveSimId, API_BASE]);
+
+  const handleApplyChanges = async () => {
+    const runwayPayload = sim.runways.map((r) => ({
+      id: `Runway ${r.runwayNumber}`,
+      mode: draftRunways[r.runwayNumber]?.mode ?? r.mode,
+      status: draftRunways[r.runwayNumber]?.status ?? r.status,
+    }));
+
+    if (!liveSimId) {
+      setSim((prev) => {
+        const updated = prev.runways.map((r) => {
+          const d = draftRunways[r.runwayNumber];
+          if (!d) return r;
+
+          const closing =
+            d.status === "RUNWAY_INSPECTION" ||
+            d.status === "SNOW_CLEARANCE" ||
+            d.status === "EQUIPMENT_FAILURE";
+
+          return {
+            ...r,
+            mode: d.mode,
+            status: d.status,
+            occupiedBy: closing ? null : r.occupiedBy,
+            currentAction: closing ? "--" : r.currentAction,
+            timeRemainingSeconds: closing ? null : r.timeRemainingSeconds,
+            planePosPct: closing ? null : r.planePosPct,
+          };
+        });
+
+        return { ...prev, runways: updated };
+      });
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/live/${liveSimId}/runways`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ runways: runwayPayload }),
       });
 
-      const at = fmtMMSS(prev.elapsedSeconds);
-      const log: LogEntry[] = [{ at, message: "Runway changes applied (visual only)" }, ...prev.log].slice(0, 12);
-      return { ...prev, runways: updated, log };
-    });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Failed to apply runway changes: ${text}`);
+      }
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.snapshot) {
+        setSim(data.snapshot);
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message ?? "Failed to apply runway changes");
+    }
   };
 
-  // ----- shared UI styles -----
   const pageShell: React.CSSProperties = {
     minHeight: "100vh",
     background: LIGHT_BG,
     color: TEXT,
-    fontFamily: "Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
+    fontFamily:
+      "Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
   };
 
   const card: React.CSSProperties = {
@@ -535,7 +602,6 @@ export default function SimulationPage() {
     fontWeight: 800,
   };
 
-  // mini queue labels
   const holdingShort = sim.holding.map((a) => a.aircraftID).slice(0, 6);
   const takeoffShort = sim.takeoff.map((a) => a.aircraftID).slice(0, 6);
 
@@ -544,18 +610,53 @@ export default function SimulationPage() {
       <Header />
 
       <main style={{ maxWidth: 1100, margin: "0 auto", padding: 20 }}>
-        {/* Top header row */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: 16, alignItems: "start" }}>
-          {/* Left: Running + progress */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1.1fr 0.9fr",
+            gap: 16,
+            alignItems: "start",
+          }}
+        >
           <div style={card}>
-            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 900, color: DS_BLUE }}>Running Simulation…</h1>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 28,
+                fontWeight: 900,
+                color: DS_BLUE,
+              }}
+            >
+              Running Simulation…
+            </h1>
 
             <div style={{ marginTop: 12 }}>
-              <div style={{ height: 12, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${progressPct}%`, background: DS_BLUE }} />
+              <div
+                style={{
+                  height: 12,
+                  background: "#e5e7eb",
+                  borderRadius: 999,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${progressPct}%`,
+                    background: DS_BLUE,
+                  }}
+                />
               </div>
 
-              <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
                 <button style={buttonGhost} onClick={() => setShowVisual((s) => !s)}>
                   {showVisual ? "Hide Simulation" : "Show Simulation"}
                 </button>
@@ -564,34 +665,28 @@ export default function SimulationPage() {
                   Run: <b>{sim.runIndex}/{sim.runCountTotal}</b>
                 </div>
 
-                <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <label style={{ fontSize: 13, color: "#4b5563" }}>
-                    Min preview (sec):{" "}
-                    <input
-                      type="number"
-                      min={0}
-                      max={60}
-                      value={minPreviewSeconds}
-                      onChange={(e) => setMinPreviewSeconds(Math.max(0, Math.min(60, Number(e.target.value) || 0)))}
-                      style={{ width: 64, marginLeft: 6, padding: "6px 8px", border: `1px solid ${BORDER}`, borderRadius: 6 }}
-                    />
-                  </label>
-
+                <div
+                  style={{
+                    marginLeft: "auto",
+                    display: "flex",
+                    gap: 10,
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                  }}
+                >
                   {phase !== "running" ? (
                     <button style={buttonPrimary} onClick={runBackendSimulation}>
                       Start
                     </button>
                   ) : (
-                    <button
-                      style={buttonGhost}
-                      onClick={() => {
-                        // allow user to stop visuals; backend already ran, but this is a “preview”
-                        stopTicker();
-                        setPhase("finished");
-                      }}
-                    >
-                      Skip Preview
-                    </button>
+                    <>
+                      <button style={buttonGhost} disabled>
+                        Running...
+                      </button>
+                      <button style={buttonPrimary} onClick={handleFinishNow}>
+                        Finish Now
+                      </button>
+                    </>
                   )}
 
                   {phase === "finished" && (
@@ -611,46 +706,80 @@ export default function SimulationPage() {
                 Status:{" "}
                 <b style={{ color: phase === "error" ? "#b91c1c" : "#111827" }}>
                   {phase === "idle" && "Ready"}
-                  {phase === "running" && "Running (preview + backend compute)"}
-                  {phase === "finished" && "Finished (results ready)"}
+                  {phase === "running" && "Running live"}
+                  {phase === "finished" && "Finished"}
                   {phase === "error" && "Error"}
                 </b>
-                {errorMsg ? <span style={{ marginLeft: 8, color: "#b91c1c" }}>— {errorMsg}</span> : null}
+                {errorMsg ? (
+                  <span style={{ marginLeft: 8, color: "#b91c1c" }}>
+                    — {errorMsg}
+                  </span>
+                ) : null}
               </div>
             </div>
           </div>
 
-          {/* Right: Scenario info */}
           <div style={card}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "baseline" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+                alignItems: "baseline",
+              }}
+            >
               <div>
-                <div style={{ fontSize: 20, fontWeight: 900 }}>{sim.scenarioName}</div>
+                <div style={{ fontSize: 20, fontWeight: 900 }}>
+                  {sim.scenarioName}
+                </div>
                 <div style={{ marginTop: 6, fontSize: 14, color: "#4b5563" }}>
                   Seed: <b>{sim.seed ?? "--"}</b>
                 </div>
               </div>
 
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 14, color: "#4b5563" }}>Simulation time (preview)</div>
-                <div style={{ fontSize: 18, fontWeight: 900 }}>{fmtMMSS(sim.elapsedSeconds)}</div>
+                <div style={{ fontSize: 14, color: "#4b5563" }}>
+                  Simulation time
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 900 }}>
+                  {fmtMMSS(sim.elapsedSeconds)}
+                </div>
               </div>
             </div>
 
             {result && (
-              <div style={{ marginTop: 12, borderTop: `1px solid ${BORDER}`, paddingTop: 12, fontSize: 13, color: "#374151" }}>
-                <div style={{ fontWeight: 800, marginBottom: 6 }}>Backend results ready</div>
-                <div>Runs: <b>{result.perRunResults?.length ?? 0}</b></div>
-                <div>Keys: <b>{Object.keys(result.aggregatedResults ?? {}).length}</b></div>
+              <div
+                style={{
+                  marginTop: 12,
+                  borderTop: `1px solid ${BORDER}`,
+                  paddingTop: 12,
+                  fontSize: 13,
+                  color: "#374151",
+                }}
+              >
+                <div style={{ fontWeight: 800, marginBottom: 6 }}>
+                  Backend results ready
+                </div>
+                <div>
+                  Runs: <b>{result.perRunResults?.length ?? 0}</b>
+                </div>
+                <div>
+                  Keys: <b>{Object.keys(result.aggregatedResults ?? {}).length}</b>
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Visual + mini queues */}
         {showVisual && (
           <section style={{ marginTop: 16, ...card }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 16 }}>
-              {/* Runway visual */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.2fr 0.8fr",
+                gap: 16,
+              }}
+            >
               <div>
                 <div style={{ ...smallLabel, marginBottom: 8 }}>Runways</div>
 
@@ -658,9 +787,16 @@ export default function SimulationPage() {
                   {sim.runways.map((r) => (
                     <div
                       key={r.runwayNumber}
-                      style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 12, alignItems: "center" }}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "120px 1fr",
+                        gap: 12,
+                        alignItems: "center",
+                      }}
                     >
-                      <div style={{ fontWeight: 800, color: "#374151" }}>Runway {r.runwayNumber}</div>
+                      <div style={{ fontWeight: 800, color: "#374151" }}>
+                        Runway {r.runwayNumber}
+                      </div>
 
                       <div style={{ position: "relative", height: 28 }}>
                         <div
@@ -677,7 +813,9 @@ export default function SimulationPage() {
 
                         {r.planePosPct != null && (
                           <div
-                            title={r.occupiedBy ? `Aircraft ${r.occupiedBy}` : "Aircraft"}
+                            title={
+                              r.occupiedBy ? `Aircraft ${r.occupiedBy}` : "Aircraft"
+                            }
                             style={{
                               position: "absolute",
                               left: `${r.planePosPct}%`,
@@ -691,7 +829,15 @@ export default function SimulationPage() {
                           </div>
                         )}
 
-                        <div style={{ position: "absolute", right: 0, top: -2, fontSize: 12, color: "#6b7280" }}>
+                        <div
+                          style={{
+                            position: "absolute",
+                            right: 0,
+                            top: -2,
+                            fontSize: 12,
+                            color: "#6b7280",
+                          }}
+                        >
                           {modeLabel(r.mode)} · {statusLabel(r.status)}
                         </div>
                       </div>
@@ -700,19 +846,38 @@ export default function SimulationPage() {
                 </div>
               </div>
 
-              {/* Mini queue boxes */}
               <div style={{ display: "grid", gap: 12 }}>
-                <div style={{ border: `1px solid ${BORDER}`, background: PANEL_BG, padding: 12 }}>
-                  <div style={{ fontWeight: 900, marginBottom: 6 }}>Holding Pattern</div>
+                <div
+                  style={{
+                    border: `1px solid ${BORDER}`,
+                    background: PANEL_BG,
+                    padding: 12,
+                  }}
+                >
+                  <div style={{ fontWeight: 900, marginBottom: 6 }}>
+                    Holding Pattern
+                  </div>
                   <div style={{ fontSize: 14, color: "#374151" }}>
-                    {holdingShort.length ? holdingShort.map((c) => `↠ ${c}`).join(", ") : "--"}
+                    {holdingShort.length
+                      ? holdingShort.map((c) => `↠ ${c}`).join(", ")
+                      : "--"}
                   </div>
                 </div>
 
-                <div style={{ border: `1px solid ${BORDER}`, background: PANEL_BG, padding: 12 }}>
-                  <div style={{ fontWeight: 900, marginBottom: 6 }}>Take-off Queue</div>
+                <div
+                  style={{
+                    border: `1px solid ${BORDER}`,
+                    background: PANEL_BG,
+                    padding: 12,
+                  }}
+                >
+                  <div style={{ fontWeight: 900, marginBottom: 6 }}>
+                    Take-off Queue
+                  </div>
                   <div style={{ fontSize: 14, color: "#374151" }}>
-                    {takeoffShort.length ? takeoffShort.map((c) => `↠ ${c}`).join(", ") : "--"}
+                    {takeoffShort.length
+                      ? takeoffShort.map((c) => `↠ ${c}`).join(", ")
+                      : "--"}
                   </div>
                 </div>
               </div>
@@ -720,39 +885,131 @@ export default function SimulationPage() {
           </section>
         )}
 
-        {/* Queue tables row */}
-        <section style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-          {/* Holding table */}
+        <section
+          style={{
+            marginTop: 16,
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 16,
+          }}
+        >
           <div style={card}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+              }}
+            >
               <h2 style={sectionTitle}>Holding Pattern</h2>
-              <div style={{ fontSize: 12, color: "#6b7280" }}>{sim.holding.length} aircraft</div>
+              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                {sim.holding.length} aircraft
+              </div>
             </div>
 
-            <div style={{ maxHeight: 180, overflowY: "auto", border: `1px solid ${BORDER}` }}>
+            <div
+              style={{
+                maxHeight: 180,
+                overflowY: "auto",
+                border: `1px solid ${BORDER}`,
+              }}
+            >
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#f3f4f6" }}>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: `1px solid ${BORDER}` }}>Aircraft</th>
-                    <th style={{ textAlign: "center", padding: 10, borderBottom: `1px solid ${BORDER}` }}>Callsign</th>
-                    <th style={{ textAlign: "center", padding: 10, borderBottom: `1px solid ${BORDER}` }}>Emergency</th>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: `1px solid ${BORDER}` }}>Emergency type</th>
-                    <th style={{ textAlign: "center", padding: 10, borderBottom: `1px solid ${BORDER}` }}>Fuel</th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: 10,
+                        borderBottom: `1px solid ${BORDER}`,
+                      }}
+                    >
+                      Aircraft
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "center",
+                        padding: 10,
+                        borderBottom: `1px solid ${BORDER}`,
+                      }}
+                    >
+                      Callsign
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "center",
+                        padding: 10,
+                        borderBottom: `1px solid ${BORDER}`,
+                      }}
+                    >
+                      Emergency
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: 10,
+                        borderBottom: `1px solid ${BORDER}`,
+                      }}
+                    >
+                      Emergency type
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "center",
+                        padding: 10,
+                        borderBottom: `1px solid ${BORDER}`,
+                      }}
+                    >
+                      Fuel
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {sim.holding.map((a) => (
                     <tr key={a.aircraftID}>
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}` }}>Aircraft {a.aircraftID}</td>
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center", fontWeight: 900 }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                        }}
+                      >
+                        Aircraft {a.aircraftID}
+                      </td>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          textAlign: "center",
+                          fontWeight: 900,
+                        }}
+                      >
                         {a.aircraftID}
                       </td>
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          textAlign: "center",
+                        }}
+                      >
                         {a.emergencyStatus === "NONE" ? "F" : "T"}
                       </td>
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}` }}>{emergencyLabel(a.emergencyStatus)}</td>
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                        }}
+                      >
+                        {emergencyLabel(a.emergencyStatus)}
+                      </td>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          textAlign: "center",
+                        }}
+                      >
                         {Math.round(a.fuelRemainingMins)}min
                       </td>
                     </tr>
@@ -760,7 +1017,14 @@ export default function SimulationPage() {
 
                   {sim.holding.length === 0 && (
                     <tr>
-                      <td colSpan={5} style={{ padding: 12, textAlign: "center", color: "#6b7280" }}>
+                      <td
+                        colSpan={5}
+                        style={{
+                          padding: 12,
+                          textAlign: "center",
+                          color: "#6b7280",
+                        }}
+                      >
                         No inbound aircraft currently holding.
                       </td>
                     </tr>
@@ -770,31 +1034,88 @@ export default function SimulationPage() {
             </div>
           </div>
 
-          {/* Takeoff table */}
           <div style={card}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+              }}
+            >
               <h2 style={sectionTitle}>Take-off Queue</h2>
-              <div style={{ fontSize: 12, color: "#6b7280" }}>{sim.takeoff.length} aircraft</div>
+              <div style={{ fontSize: 12, color: "#6b7280" }}>
+                {sim.takeoff.length} aircraft
+              </div>
             </div>
 
-            <div style={{ maxHeight: 180, overflowY: "auto", border: `1px solid ${BORDER}` }}>
+            <div
+              style={{
+                maxHeight: 180,
+                overflowY: "auto",
+                border: `1px solid ${BORDER}`,
+              }}
+            >
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "#f3f4f6" }}>
-                    <th style={{ textAlign: "left", padding: 10, borderBottom: `1px solid ${BORDER}` }}>Aircraft</th>
-                    <th style={{ textAlign: "center", padding: 10, borderBottom: `1px solid ${BORDER}` }}>Callsign</th>
-                    <th style={{ textAlign: "center", padding: 10, borderBottom: `1px solid ${BORDER}` }}>Wait time</th>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: 10,
+                        borderBottom: `1px solid ${BORDER}`,
+                      }}
+                    >
+                      Aircraft
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "center",
+                        padding: 10,
+                        borderBottom: `1px solid ${BORDER}`,
+                      }}
+                    >
+                      Callsign
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "center",
+                        padding: 10,
+                        borderBottom: `1px solid ${BORDER}`,
+                      }}
+                    >
+                      Wait time
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
                   {sim.takeoff.map((a) => (
                     <tr key={a.aircraftID}>
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}` }}>Aircraft {a.aircraftID}</td>
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center", fontWeight: 900 }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                        }}
+                      >
+                        Aircraft {a.aircraftID}
+                      </td>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          textAlign: "center",
+                          fontWeight: 900,
+                        }}
+                      >
                         {a.aircraftID}
                       </td>
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          textAlign: "center",
+                        }}
+                      >
                         {fmtMMSS(a.waitSeconds)}
                       </td>
                     </tr>
@@ -802,7 +1123,14 @@ export default function SimulationPage() {
 
                   {sim.takeoff.length === 0 && (
                     <tr>
-                      <td colSpan={3} style={{ padding: 12, textAlign: "center", color: "#6b7280" }}>
+                      <td
+                        colSpan={3}
+                        style={{
+                          padding: 12,
+                          textAlign: "center",
+                          color: "#6b7280",
+                        }}
+                      >
                         No outbound aircraft currently queued.
                       </td>
                     </tr>
@@ -813,47 +1141,139 @@ export default function SimulationPage() {
           </div>
         </section>
 
-        {/* Runway occupancy + edits */}
         <section style={{ marginTop: 16, ...card }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
             <h2 style={sectionTitle}>Runway Occupancy</h2>
-            <button style={buttonPrimary} onClick={handleApplyChanges}>Apply Changes</button>
+            <button style={buttonPrimary} onClick={handleApplyChanges}>
+              Apply Changes
+            </button>
           </div>
 
           <div style={{ overflowX: "auto", border: `1px solid ${BORDER}` }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900 }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                minWidth: 900,
+              }}
+            >
               <thead>
                 <tr style={{ background: "#f3f4f6" }}>
-                  <th style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "left" }}>Runway</th>
-                  <th style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>Mode</th>
-                  <th style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>Status</th>
-                  <th style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>Aircraft Callsign</th>
-                  <th style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>Current Action</th>
-                  <th style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>Time Remaining</th>
+                  <th
+                    style={{
+                      padding: 10,
+                      borderBottom: `1px solid ${BORDER}`,
+                      textAlign: "left",
+                    }}
+                  >
+                    Runway
+                  </th>
+                  <th
+                    style={{
+                      padding: 10,
+                      borderBottom: `1px solid ${BORDER}`,
+                      textAlign: "center",
+                    }}
+                  >
+                    Mode
+                  </th>
+                  <th
+                    style={{
+                      padding: 10,
+                      borderBottom: `1px solid ${BORDER}`,
+                      textAlign: "center",
+                    }}
+                  >
+                    Status
+                  </th>
+                  <th
+                    style={{
+                      padding: 10,
+                      borderBottom: `1px solid ${BORDER}`,
+                      textAlign: "center",
+                    }}
+                  >
+                    Aircraft Callsign
+                  </th>
+                  <th
+                    style={{
+                      padding: 10,
+                      borderBottom: `1px solid ${BORDER}`,
+                      textAlign: "center",
+                    }}
+                  >
+                    Current Action
+                  </th>
+                  <th
+                    style={{
+                      padding: 10,
+                      borderBottom: `1px solid ${BORDER}`,
+                      textAlign: "center",
+                    }}
+                  >
+                    Time Remaining
+                  </th>
                 </tr>
               </thead>
 
               <tbody>
                 {sim.runways.map((r) => {
-                  const draft = draftRunways[r.runwayNumber] ?? { mode: r.mode, status: r.status };
-                  const timeRem = r.timeRemainingSeconds == null ? "--" : fmtMMSS(r.timeRemainingSeconds);
+                  const draft = draftRunways[r.runwayNumber] ?? {
+                    mode: r.mode,
+                    status: r.status,
+                  };
+                  const timeRem =
+                    r.timeRemainingSeconds == null
+                      ? "--"
+                      : fmtMMSS(r.timeRemainingSeconds);
 
                   return (
                     <tr key={r.runwayNumber}>
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, fontWeight: 900 }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          fontWeight: 900,
+                        }}
+                      >
                         Runway {r.runwayNumber}
                       </td>
 
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          textAlign: "center",
+                        }}
+                      >
                         <select
                           value={draft.mode}
                           onChange={(e) =>
                             setDraftRunways((prev) => ({
                               ...prev,
-                              [r.runwayNumber]: { ...(prev[r.runwayNumber] ?? { mode: r.mode, status: r.status }), mode: e.target.value as RunwayMode },
+                              [r.runwayNumber]: {
+                                ...(prev[r.runwayNumber] ?? {
+                                  mode: r.mode,
+                                  status: r.status,
+                                }),
+                                mode: e.target.value as RunwayMode,
+                              },
                             }))
                           }
-                          style={{ width: 140, padding: "6px 8px", border: `1px solid ${BORDER}`, borderRadius: 6 }}
+                          style={{
+                            width: 140,
+                            padding: "6px 8px",
+                            border: `1px solid ${BORDER}`,
+                            borderRadius: 6,
+                          }}
                         >
                           <option value="TAKEOFF">Take-off</option>
                           <option value="LANDING">Landing</option>
@@ -861,34 +1281,74 @@ export default function SimulationPage() {
                         </select>
                       </td>
 
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          textAlign: "center",
+                        }}
+                      >
                         <select
                           value={draft.status}
                           onChange={(e) =>
                             setDraftRunways((prev) => ({
                               ...prev,
-                              [r.runwayNumber]: { ...(prev[r.runwayNumber] ?? { mode: r.mode, status: r.status }), status: e.target.value as RunwayStatus },
+                              [r.runwayNumber]: {
+                                ...(prev[r.runwayNumber] ?? {
+                                  mode: r.mode,
+                                  status: r.status,
+                                }),
+                                status: e.target.value as RunwayStatus,
+                              },
                             }))
                           }
-                          style={{ width: 180, padding: "6px 8px", border: `1px solid ${BORDER}`, borderRadius: 6 }}
+                          style={{
+                            width: 180,
+                            padding: "6px 8px",
+                            border: `1px solid ${BORDER}`,
+                            borderRadius: 6,
+                          }}
                         >
                           <option value="AVAILABLE">Available</option>
                           <option value="OCCUPIED">Occupied</option>
-                          <option value="RUNWAY_INSPECTION">Runway inspection</option>
+                          <option value="RUNWAY_INSPECTION">
+                            Runway inspection
+                          </option>
                           <option value="SNOW_CLEARANCE">Snow clearance</option>
-                          <option value="EQUIPMENT_FAILURE">Equipment failure</option>
+                          <option value="EQUIPMENT_FAILURE">
+                            Equipment failure
+                          </option>
                         </select>
                       </td>
 
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center", fontWeight: 900 }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          textAlign: "center",
+                          fontWeight: 900,
+                        }}
+                      >
                         {r.occupiedBy ?? "--"}
                       </td>
 
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          textAlign: "center",
+                        }}
+                      >
                         {r.currentAction}
                       </td>
 
-                      <td style={{ padding: 10, borderBottom: `1px solid ${BORDER}`, textAlign: "center" }}>
+                      <td
+                        style={{
+                          padding: 10,
+                          borderBottom: `1px solid ${BORDER}`,
+                          textAlign: "center",
+                        }}
+                      >
                         {timeRem}
                       </td>
                     </tr>
@@ -899,11 +1359,21 @@ export default function SimulationPage() {
           </div>
         </section>
 
-        {/* Live action log */}
         <section style={{ marginTop: 16, ...card }}>
-          <h2 style={{ ...sectionTitle, textAlign: "center" }}>Live Action Log</h2>
+          <h2 style={{ ...sectionTitle, textAlign: "center" }}>
+            Live Action Log
+          </h2>
 
-          <div style={{ border: `1px solid ${BORDER}`, background: "#111827", color: "#f9fafb", padding: 12, maxHeight: 210, overflowY: "auto" }}>
+          <div
+            style={{
+              border: `1px solid ${BORDER}`,
+              background: "#111827",
+              color: "#f9fafb",
+              padding: 12,
+              maxHeight: 210,
+              overflowY: "auto",
+            }}
+          >
             {sim.log.map((entry, idx) => (
               <div
                 key={`${entry.at}-${idx}`}
