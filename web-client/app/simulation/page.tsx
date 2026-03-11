@@ -4,14 +4,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/header";
 
-// theme constants
 const DS_BLUE = "#004696";
 const TEXT = "#1f2937";
 const BORDER = "#d0d7de";
 const LIGHT_BG = "#f6f8fb";
 const PANEL_BG = "#eef2f6";
 
-// ----------------- types (frontend) -----------------
+
 type FlightType = "INBOUND" | "OUTBOUND";
 type EmergencyStatus =
   | "NONE"
@@ -104,13 +103,19 @@ type LiveTickResponse = {
   aggregatedResults?: any;
 };
 
-// ----------------- helpers -----------------
 const pad2 = (n: number) => String(n).padStart(2, "0");
 
 const fmtMMSS = (totalSeconds: number) => {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
   return `${m}:${pad2(s)}`;
+};
+
+const fmtHHMM = (totalSeconds: number) => {
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  return `${hours}:${pad2(mins)}`;
 };
 
 const emergencyLabel = (e: EmergencyStatus) => {
@@ -158,62 +163,6 @@ const modeLabel = (m: RunwayMode) => {
   }
 };
 
-const initialMockState: SimulationState = {
-  scenarioName: "Configured Scenario",
-  seed: null,
-  runIndex: 1,
-  runCountTotal: 1,
-  elapsedSeconds: 0,
-  runways: buildDefaultRunways(3).map((r) => ({
-    runwayNumber: extractRunwayNumber(r.id),
-    mode: r.mode,
-    status: r.status,
-    occupiedBy: null,
-    currentAction: "--",
-    timeRemainingSeconds: null,
-    planePosPct: null,
-  })),
-  holding: [],
-  takeoff: [],
-  log: [],
-};
-
-function loadConfigFromStorage(): SimulationConfig | null {
-  if (typeof window === "undefined") return null;
-
-  const keys = ["pp:simConfig", "pp_sim_config", "simulationConfig"];
-  for (const k of keys) {
-    const raw = sessionStorage.getItem(k) ?? localStorage.getItem(k);
-    if (!raw) continue;
-
-    try {
-      const parsed = JSON.parse(raw);
-      return normalizeStoredConfig(parsed);
-    } catch {
-      // ignore invalid JSON and keep looking
-    }
-  }
-
-  return null;
-}
-
-function deriveVisualRunwaysFromConfig(config: SimulationConfig): RunwayRow[] {
-  return (config.runways ?? []).map((r) => {
-    const match = String(r.id).match(/(\d{2})$/);
-    const runwayNumber = match ? match[1] : String(r.id);
-
-    return {
-      runwayNumber,
-      mode: r.mode,
-      status: r.status,
-      occupiedBy: null,
-      currentAction: "--",
-      timeRemainingSeconds: null,
-      planePosPct: null,
-    };
-  });
-}
-
 function buildDefaultRunways(count: number) {
   return Array.from({ length: count }, (_, i) => ({
     id: `Runway ${String(i + 1).padStart(2, "0")}`,
@@ -230,7 +179,7 @@ function extractRunwayNumber(id: string) {
 function normalizeStoredConfig(raw: any): SimulationConfig {
   const inboundFlowRate = Number(raw?.inboundFlowRate ?? raw?.inboundFlow ?? 15);
   const outboundFlowRate = Number(raw?.outboundFlowRate ?? raw?.outboundFlow ?? 15);
-  const durationMinutes = Number(raw?.durationMinutes ?? raw?.duration ?? 60);
+  const durationMinutes = Number(raw?.durationMinutes ?? 60);
   const runCount = Number(raw?.runCount ?? raw?.numRuns ?? 1);
   const seed = raw?.seed ?? null;
 
@@ -243,7 +192,7 @@ function normalizeStoredConfig(raw: any): SimulationConfig {
       status: (r?.status ?? "AVAILABLE") as RunwayStatus,
     }));
   } else {
-    const runwayCount = Number(raw?.runways ?? raw?.runwayCount ?? raw?.numRunways ?? 3);
+    const runwayCount = Number(raw?.runways ?? raw?.runwayCount ?? 3);
     runways = buildDefaultRunways(Math.max(1, runwayCount));
   }
 
@@ -257,6 +206,24 @@ function normalizeStoredConfig(raw: any): SimulationConfig {
   };
 }
 
+function loadConfigFromStorage(): SimulationConfig | null {
+  if (typeof window === "undefined") return null;
+
+  const keys = ["pp:simConfig", "pp_sim_config", "simulationConfig"];
+  for (const k of keys) {
+    const raw = sessionStorage.getItem(k) ?? localStorage.getItem(k);
+    if (!raw) continue;
+
+    try {
+      return normalizeStoredConfig(JSON.parse(raw));
+    } catch {
+      // ignore invalid JSON
+    }
+  }
+
+  return null;
+}
+
 function buildFallbackConfig(): SimulationConfig {
   return {
     inboundFlowRate: 15,
@@ -268,11 +235,121 @@ function buildFallbackConfig(): SimulationConfig {
   };
 }
 
+function deriveVisualRunwaysFromConfig(config: SimulationConfig): RunwayRow[] {
+  return (config.runways ?? []).map((r) => ({
+    runwayNumber: extractRunwayNumber(r.id),
+    mode: r.mode,
+    status: r.status,
+    occupiedBy: null,
+    currentAction: "--",
+    timeRemainingSeconds: null,
+    planePosPct: null,
+  }));
+}
+
+function RunwayPlaneSprite({
+  action,
+  leftPct,
+  paused,
+  transitionSeconds,
+  callsign,
+}: {
+  action: "Landing" | "Take-off" | "--";
+  leftPct: number;
+  paused: boolean;
+  transitionSeconds: number;
+  callsign: string | null;
+}) {
+  const isLanding = action === "Landing";
+  const color = isLanding ? "#0f766e" : "#1d4ed8";
+  const label = isLanding ? "LAND" : "T/O";
+
+  return (
+    <div
+      title={callsign ? `Aircraft ${callsign}` : "Aircraft"}
+      style={{
+        position: "absolute",
+        left: `${leftPct}%`,
+        top: -12,
+        transform: "translateX(-50%)",
+        transition: paused ? "none" : `left ${transitionSeconds}s linear`,
+        willChange: "left",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 2,
+        pointerEvents: "none",
+        zIndex: 3,
+      }}
+    >
+      {callsign && (
+        <div
+          style={{
+            fontSize: 10,
+            fontWeight: 800,
+            color: "#111827",
+            background: "#ffffff",
+            border: "1px solid #d0d7de",
+            borderRadius: 999,
+            padding: "1px 6px",
+            lineHeight: 1.3,
+            boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {callsign}
+        </div>
+      )}
+
+      <div
+        style={{
+          fontSize: 10,
+          fontWeight: 800,
+          color: "#fff",
+          background: color,
+          borderRadius: 999,
+          padding: "1px 6px",
+          lineHeight: 1.3,
+          boxShadow: "0 1px 4px rgba(0,0,0,0.15)",
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          transform: isLanding ? "rotate(180deg)" : "rotate(0deg)",
+          transition: paused ? "none" : `transform ${transitionSeconds}s linear`,
+          lineHeight: 0,
+        }}
+      >
+        <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M2 13h7.8l3.1 8h2l-1.8-8H22v-2h-8.9L14.9 3h-2l-3.1 8H2z"
+            fill={color}
+          />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 export default function SimulationPage() {
   const router = useRouter();
   const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
 
-  const [sim, setSim] = useState<SimulationState>(initialMockState);
+  const [sim, setSim] = useState<SimulationState>({
+    scenarioName: "Configured Scenario",
+    seed: null,
+    runIndex: 1,
+    runCountTotal: 1,
+    elapsedSeconds: 0,
+    runways: [],
+    holding: [],
+    takeoff: [],
+    log: [],
+  });
+
   const [showVisual, setShowVisual] = useState(true);
   const [phase, setPhase] = useState<"idle" | "running" | "finished" | "error">(
     "idle"
@@ -280,12 +357,18 @@ export default function SimulationPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [result, setResult] = useState<SimulateResponse | null>(null);
   const [liveSimId, setLiveSimId] = useState<string | null>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [speedMultiplier, setSpeedMultiplier] = useState<number>(1);
+
+  const tickDelayMs = Math.max(125, Math.floor(1000 / speedMultiplier));
+  const planeTransitionSeconds = Math.max(0.12, tickDelayMs / 1000 * 0.9);
 
   const [draftRunways, setDraftRunways] = useState<
     Record<string, { mode: RunwayMode; status: RunwayStatus }>
   >({});
 
   const configRef = useRef<SimulationConfig | null>(null);
+  const tickInFlightRef = useRef(false);
 
   useEffect(() => {
     const cfg = loadConfigFromStorage() ?? buildFallbackConfig();
@@ -320,61 +403,18 @@ export default function SimulationPage() {
     });
   }, [sim.runways]);
 
+  const totalDurationMinutes = configRef.current?.durationMinutes ?? 60;
+
   const progressPct = useMemo(() => {
-    if (sim.runCountTotal <= 0) return 0;
-    return Math.min(100, Math.max(0, (sim.runIndex / sim.runCountTotal) * 100));
-  }, [sim.runIndex, sim.runCountTotal]);
+    const runFraction = Math.min(
+      1,
+      sim.elapsedSeconds / Math.max(1, totalDurationMinutes * 60)
+    );
+    const overallFraction =
+      ((sim.runIndex - 1) + runFraction) / Math.max(1, sim.runCountTotal);
 
-  async function handleFinishNow() {
-    if (!liveSimId) return;
-
-    try {
-      const res = await fetch(`${API_BASE}/live/${liveSimId}/finish`, {
-        method: "POST",
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`Finish failed: ${text}`);
-      }
-
-      const data = await res.json();
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      if (data.snapshot) {
-        setSim(data.snapshot);
-      }
-
-      const finalPayload = {
-        status: "success",
-        configurationUsed: data.configurationUsed,
-        perRunResults: data.perRunResults ?? [],
-        aggregatedResults: data.aggregatedResults ?? {},
-      };
-
-      setResult(finalPayload as SimulateResponse);
-      sessionStorage.setItem("pp:lastResults", JSON.stringify(finalPayload));
-      setPhase("finished");
-
-      try {
-        await fetch(`${API_BASE}/save`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(finalPayload),
-        });
-      } catch {
-        // ignore save failure here
-      }
-    } catch (err: any) {
-      setPhase("error");
-      setErrorMsg(err?.message ?? "Failed to finish simulation");
-    }
-  }
+    return Math.min(100, Math.max(0, overallFraction * 100));
+  }, [sim.elapsedSeconds, sim.runIndex, sim.runCountTotal, totalDurationMinutes]);
 
   async function runBackendSimulation() {
     setErrorMsg(null);
@@ -425,6 +465,7 @@ export default function SimulationPage() {
       setLiveSimId(data.simId);
       setSim(data.snapshot);
       setPhase("running");
+      setIsPaused(false);
     } catch (err: any) {
       setPhase("error");
       setErrorMsg(err?.message ?? "Failed to start live simulation");
@@ -432,9 +473,14 @@ export default function SimulationPage() {
   }
 
   useEffect(() => {
-    if (phase !== "running" || !liveSimId) return;
+    if (phase !== "running" || !liveSimId || isPaused) return;
+
+    const tickDelay = Math.max(125, Math.floor(1000 / speedMultiplier));
 
     const interval = window.setInterval(async () => {
+      if (tickInFlightRef.current) return;
+      tickInFlightRef.current = true;
+
       try {
         const res = await fetch(`${API_BASE}/live/${liveSimId}/tick`, {
           method: "POST",
@@ -466,6 +512,7 @@ export default function SimulationPage() {
           setResult(finalPayload as SimulateResponse);
           sessionStorage.setItem("pp:lastResults", JSON.stringify(finalPayload));
           setPhase("finished");
+          setIsPaused(false);
 
           try {
             await fetch(`${API_BASE}/save`, {
@@ -485,11 +532,13 @@ export default function SimulationPage() {
         setPhase("error");
         setErrorMsg(err?.message ?? "Live simulation polling failed");
         window.clearInterval(interval);
+      } finally {
+        tickInFlightRef.current = false;
       }
-    }, 1000);
+    }, tickDelay);
 
     return () => window.clearInterval(interval);
-  }, [phase, liveSimId, API_BASE]);
+  }, [phase, liveSimId, API_BASE, isPaused, speedMultiplier]);
 
   const handleApplyChanges = async () => {
     const runwayPayload = sim.runways.map((r) => ({
@@ -504,19 +553,10 @@ export default function SimulationPage() {
           const d = draftRunways[r.runwayNumber];
           if (!d) return r;
 
-          const closing =
-            d.status === "RUNWAY_INSPECTION" ||
-            d.status === "SNOW_CLEARANCE" ||
-            d.status === "EQUIPMENT_FAILURE";
-
           return {
             ...r,
             mode: d.mode,
             status: d.status,
-            occupiedBy: closing ? null : r.occupiedBy,
-            currentAction: closing ? "--" : r.currentAction,
-            timeRemainingSeconds: closing ? null : r.timeRemainingSeconds,
-            planePosPct: closing ? null : r.planePosPct,
           };
         });
 
@@ -552,6 +592,58 @@ export default function SimulationPage() {
       setErrorMsg(err?.message ?? "Failed to apply runway changes");
     }
   };
+
+  async function handleFinishNow() {
+    if (!liveSimId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/live/${liveSimId}/finish`, {
+        method: "POST",
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Finish failed: ${text}`);
+      }
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      if (data.snapshot) {
+        setSim(data.snapshot);
+      }
+
+      const finalPayload = {
+        status: "success",
+        configurationUsed: data.configurationUsed,
+        perRunResults: data.perRunResults ?? [],
+        aggregatedResults: data.aggregatedResults ?? {},
+      };
+
+      setResult(finalPayload as SimulateResponse);
+      sessionStorage.setItem("pp:lastResults", JSON.stringify(finalPayload));
+      setPhase("finished");
+      setIsPaused(false);
+
+      try {
+        await fetch(`${API_BASE}/save`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(finalPayload),
+        });
+      } catch {
+        // ignore save failure
+      }
+    } catch (err: any) {
+      setPhase("error");
+      setErrorMsg(err?.message ?? "Failed to finish simulation");
+    }
+  }
 
   const pageShell: React.CSSProperties = {
     minHeight: "100vh",
@@ -602,6 +694,16 @@ export default function SimulationPage() {
     fontWeight: 800,
   };
 
+  const speedButtonStyle = (value: number): React.CSSProperties => ({
+    padding: "8px 12px",
+    cursor: "pointer",
+    border: `1px solid ${BORDER}`,
+    borderRadius: 8,
+    background: speedMultiplier === value ? DS_BLUE : "#fff",
+    color: speedMultiplier === value ? "#fff" : TEXT,
+    fontWeight: 700,
+  });
+
   const holdingShort = sim.holding.map((a) => a.aircraftID).slice(0, 6);
   const takeoffShort = sim.takeoff.map((a) => a.aircraftID).slice(0, 6);
 
@@ -644,6 +746,7 @@ export default function SimulationPage() {
                     height: "100%",
                     width: `${progressPct}%`,
                     background: DS_BLUE,
+                    transition: "width 0.2s linear",
                   }}
                 />
               </div>
@@ -657,12 +760,19 @@ export default function SimulationPage() {
                   flexWrap: "wrap",
                 }}
               >
-                <button style={buttonGhost} onClick={() => setShowVisual((s) => !s)}>
+                <button
+                  style={buttonGhost}
+                  onClick={() => setShowVisual((s) => !s)}
+                >
                   {showVisual ? "Hide Simulation" : "Show Simulation"}
                 </button>
 
                 <div style={{ fontSize: 14, color: "#374151" }}>
                   Run: <b>{sim.runIndex}/{sim.runCountTotal}</b>
+                </div>
+
+                <div style={{ fontSize: 14, color: "#374151" }}>
+                  Elapsed: <b>{fmtHHMM(sim.elapsedSeconds)}</b>
                 </div>
 
                 <div
@@ -674,14 +784,17 @@ export default function SimulationPage() {
                     flexWrap: "wrap",
                   }}
                 >
-                  {phase !== "running" ? (
+                  {phase === "idle" || phase === "finished" || phase === "error" ? (
                     <button style={buttonPrimary} onClick={runBackendSimulation}>
                       Start
                     </button>
                   ) : (
                     <>
-                      <button style={buttonGhost} disabled>
-                        Running...
+                      <button
+                        style={buttonGhost}
+                        onClick={() => setIsPaused((p) => !p)}
+                      >
+                        {isPaused ? "Resume" : "Pause"}
                       </button>
                       <button style={buttonPrimary} onClick={handleFinishNow}>
                         Finish Now
@@ -702,11 +815,33 @@ export default function SimulationPage() {
                 </div>
               </div>
 
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  gap: 8,
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                }}
+              >
+                <span style={{ fontSize: 13, color: "#6b7280" }}>Speed:</span>
+                {[1, 2, 4, 8].map((speed) => (
+                  <button
+                    key={speed}
+                    style={speedButtonStyle(speed)}
+                    onClick={() => setSpeedMultiplier(speed)}
+                    disabled={phase !== "running"}
+                  >
+                    {speed}x
+                  </button>
+                ))}
+              </div>
+
               <div style={{ marginTop: 10, fontSize: 13, color: "#6b7280" }}>
                 Status:{" "}
                 <b style={{ color: phase === "error" ? "#b91c1c" : "#111827" }}>
                   {phase === "idle" && "Ready"}
-                  {phase === "running" && "Running live"}
+                  {phase === "running" && (isPaused ? "Paused" : "Running live")}
                   {phase === "finished" && "Finished"}
                   {phase === "error" && "Error"}
                 </b>
@@ -735,6 +870,9 @@ export default function SimulationPage() {
                 <div style={{ marginTop: 6, fontSize: 14, color: "#4b5563" }}>
                   Seed: <b>{sim.seed ?? "--"}</b>
                 </div>
+                <div style={{ marginTop: 6, fontSize: 14, color: "#4b5563" }}>
+                  Duration per run: <b>{totalDurationMinutes / 60} hour(s)</b>
+                </div>
               </div>
 
               <div style={{ textAlign: "right" }}>
@@ -742,7 +880,7 @@ export default function SimulationPage() {
                   Simulation time
                 </div>
                 <div style={{ fontSize: 18, fontWeight: 900 }}>
-                  {fmtMMSS(sim.elapsedSeconds)}
+                  {fmtHHMM(sim.elapsedSeconds)}
                 </div>
               </div>
             </div>
@@ -783,66 +921,186 @@ export default function SimulationPage() {
               <div>
                 <div style={{ ...smallLabel, marginBottom: 8 }}>Runways</div>
 
-                <div style={{ display: "grid", gap: 18 }}>
-                  {sim.runways.map((r) => (
-                    <div
-                      key={r.runwayNumber}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "120px 1fr",
-                        gap: 12,
-                        alignItems: "center",
-                      }}
-                    >
-                      <div style={{ fontWeight: 800, color: "#374151" }}>
-                        Runway {r.runwayNumber}
-                      </div>
+                <div style={{ display: "grid", gap: 30 }}>
+                  {sim.runways.map((r) => {
+                    const displayedLeft =
+                      r.planePosPct == null
+                        ? null
+                        : r.currentAction === "Landing"
+                        ? r.planePosPct
+                        : 100 - r.planePosPct;
 
-                      <div style={{ position: "relative", height: 28 }}>
-                        <div
-                          style={{
-                            position: "absolute",
-                            top: "50%",
-                            left: 0,
-                            right: 0,
-                            height: 3,
-                            background: "#111827",
-                            transform: "translateY(-50%)",
-                          }}
-                        />
-
-                        {r.planePosPct != null && (
-                          <div
-                            title={
-                              r.occupiedBy ? `Aircraft ${r.occupiedBy}` : "Aircraft"
-                            }
-                            style={{
-                              position: "absolute",
-                              left: `${r.planePosPct}%`,
-                              top: 0,
-                              transform: "translateX(-50%)",
-                              fontSize: 18,
-                              lineHeight: "28px",
-                            }}
-                          >
-                            ✈️
-                          </div>
-                        )}
+                    return (
+                      <div
+                        key={r.runwayNumber}
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "120px 1fr",
+                          gap: 12,
+                          alignItems: "center",
+                        }}
+                      >
+                        <div style={{ fontWeight: 800, color: "#374151" }}>
+                          Runway {r.runwayNumber}
+                        </div>
 
                         <div
                           style={{
-                            position: "absolute",
-                            right: 0,
-                            top: -2,
-                            fontSize: 12,
-                            color: "#6b7280",
+                            position: "relative",
+                            height: 82,
+                            overflow: "visible",
                           }}
                         >
-                          {modeLabel(r.mode)} · {statusLabel(r.status)}
+                          {(() => {
+                            const runwayLineY = 46;
+
+                            return (
+                              <>
+                                {/* direction labels */}
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    left: 0,
+                                    top: 0,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: "#0f766e",
+                                  }}
+                                >
+                                  Landing →
+                                </div>
+
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    right: 0,
+                                    top: 0,
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color: "#1d4ed8",
+                                  }}
+                                >
+                                  ← Take-off
+                                </div>
+
+                                {/* runway */}
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    top: runwayLineY,
+                                    left: 0,
+                                    right: 0,
+                                    height: 4,
+                                    background: "#111827",
+                                    transform: "translateY(-50%)",
+                                    borderRadius: 2,
+                                    zIndex: 1,
+                                  }}
+                                />
+
+                                {/* threshold markers */}
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    left: 0,
+                                    top: runwayLineY,
+                                    width: 3,
+                                    height: 18,
+                                    background: "#111827",
+                                    transform: "translateY(-50%)",
+                                    zIndex: 1,
+                                  }}
+                                />
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    right: 0,
+                                    top: runwayLineY,
+                                    width: 3,
+                                    height: 18,
+                                    background: "#111827",
+                                    transform: "translateY(-50%)",
+                                    zIndex: 1,
+                                  }}
+                                />
+
+                                {/* runway guide */}
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    top: runwayLineY,
+                                    left: "8%",
+                                    right: "8%",
+                                    height: 0,
+                                    borderTop: "1px dashed rgba(255,255,255,0.45)",
+                                    transform: "translateY(-50%)",
+                                    pointerEvents: "none",
+                                    zIndex: 1,
+                                  }}
+                                />
+
+                                {/* plane */}
+                                {displayedLeft != null && r.currentAction !== "--" && (
+                                  <RunwayPlaneSprite
+                                    key={`${r.runwayNumber}-${r.occupiedBy ?? "idle"}-${r.currentAction}`}
+                                    action={r.currentAction}
+                                    leftPct={displayedLeft}
+                                    paused={isPaused}
+                                    transitionSeconds={planeTransitionSeconds}
+                                    callsign={r.occupiedBy}
+                                  />
+                                )}
+
+                                {/* current action pill */}
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    left: "50%",
+                                    top: runwayLineY + 14,
+                                    transform: "translateX(-50%)",
+                                    fontSize: 11,
+                                    fontWeight: 700,
+                                    color:
+                                      r.currentAction === "Landing"
+                                        ? "#0f766e"
+                                        : r.currentAction === "Take-off"
+                                        ? "#1d4ed8"
+                                        : "#6b7280",
+                                    background: "#fff",
+                                    padding: "2px 8px",
+                                    borderRadius: 999,
+                                    border: `1px solid ${BORDER}`,
+                                    minWidth: 84,
+                                    textAlign: "center",
+                                    zIndex: 2,
+                                  }}
+                                >
+                                  {r.currentAction === "--" ? "Idle" : r.currentAction}
+                                </div>
+
+                                {/* mode / status label aligned with runway */}
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    right: 0,
+                                    top: runwayLineY + 10,
+                                    fontSize: 12,
+                                    color: "#6b7280",
+                                    background: "#fff",
+                                    padding: "1px 4px",
+                                    zIndex: 2,
+                                  }}
+                                >
+                                  {modeLabel(r.mode)} · {statusLabel(r.status)}
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
+                        
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

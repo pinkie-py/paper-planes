@@ -1891,5 +1891,540 @@
         }
       }
     }
+  },
+  {
+    "id": "SIM-1773239302806",
+    "timestamp": "2026-03-11T14:28:22.806Z",
+    "seed": {
+      "inboundFlowRate": 100,
+      "outboundFlowRate": 100,
+      "durationMinutes": 120,
+      "runCount": 2,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 03",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 04",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 05",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "statistics": {
+      "perRunResults": [
+        {
+          "totalProcessed": 200,
+          "diverted": 1,
+          "cancelled": 0,
+          "averageDelayMins": 9.67,
+          "holdingQueueSizeRemaining": 19,
+          "takeoffQueueSizeRemaining": 20
+        },
+        {
+          "totalProcessed": 200,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 9.76,
+          "holdingQueueSizeRemaining": 19,
+          "takeoffQueueSizeRemaining": 21
+        }
+      ],
+      "aggregatedResults": {
+        "totalProcessed": {
+          "mean": 200,
+          "stdDev": 0
+        },
+        "diverted": {
+          "mean": 0.5,
+          "stdDev": 0.71
+        },
+        "cancelled": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "averageDelayMins": {
+          "mean": 9.71,
+          "stdDev": 0.06
+        },
+        "holdingQueueSizeRemaining": {
+          "mean": 19,
+          "stdDev": 0
+        },
+        "takeoffQueueSizeRemaining": {
+          "mean": 20.5,
+          "stdDev": 0.71
+        }
+      }
+    }
+  },
+  {
+    "id": "SIM-1773240378318",
+    "timestamp": "2026-03-11T14:46:18.318Z",
+    "seed": {
+      "inboundFlowRate": 20,
+      "outboundFlowRate": 20,
+      "durationMinutes": 60,
+      "runCount": 1,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 03",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "statistics": {
+      "perRunResults": [
+        {
+          "totalProcessed": 44,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.13636363636363635,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        }
+      ],
+      "aggregatedResults": {
+        "totalProcessed": {
+          "mean": 44,
+          "stdDev": 0
+        },
+        "diverted": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "cancelled": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "averageDelayMins": {
+          "mean": 0.14,
+          "stdDev": 0
+        },
+        "holdingQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "takeoffQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        }
+      }
+    }
+  },
+  {
+    "id": "SIM-1773242122422",
+    "timestamp": "2026-03-11T15:15:22.422Z",
+    "seed": {
+      "inboundFlowRate": 10,
+      "outboundFlowRate": 10,
+      "durationMinutes": 60,
+      "runCount": 1,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "statistics": {
+      "perRunResults": [
+        {
+          "totalProcessed": 17,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 2.8823529411764706,
+          "holdingQueueSizeRemaining": 1,
+          "takeoffQueueSizeRemaining": 1
+        }
+      ],
+      "aggregatedResults": {
+        "totalProcessed": {
+          "mean": 17,
+          "stdDev": 0
+        },
+        "diverted": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "cancelled": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "averageDelayMins": {
+          "mean": 2.88,
+          "stdDev": 0
+        },
+        "holdingQueueSizeRemaining": {
+          "mean": 1,
+          "stdDev": 0
+        },
+        "takeoffQueueSizeRemaining": {
+          "mean": 1,
+          "stdDev": 0
+        }
+      }
+    }
+  },
+  {
+    "id": "SIM-1773242174741",
+    "timestamp": "2026-03-11T15:16:14.741Z",
+    "seed": {
+      "inboundFlowRate": 10,
+      "outboundFlowRate": 10,
+      "durationMinutes": 60,
+      "runCount": 1,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "statistics": {
+      "perRunResults": [
+        {
+          "totalProcessed": 18,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.6111111111111112,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        }
+      ],
+      "aggregatedResults": {
+        "totalProcessed": {
+          "mean": 18,
+          "stdDev": 0
+        },
+        "diverted": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "cancelled": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "averageDelayMins": {
+          "mean": 0.61,
+          "stdDev": 0
+        },
+        "holdingQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "takeoffQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        }
+      }
+    }
+  },
+  {
+    "id": "SIM-1773242486336",
+    "timestamp": "2026-03-11T15:21:26.336Z",
+    "seed": {
+      "inboundFlowRate": 10,
+      "outboundFlowRate": 10,
+      "durationMinutes": 60,
+      "runCount": 1,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "statistics": {
+      "perRunResults": [
+        {
+          "totalProcessed": 23,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.30434782608695654,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        }
+      ],
+      "aggregatedResults": {
+        "totalProcessed": {
+          "mean": 23,
+          "stdDev": 0
+        },
+        "diverted": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "cancelled": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "averageDelayMins": {
+          "mean": 0.3,
+          "stdDev": 0
+        },
+        "holdingQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "takeoffQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        }
+      }
+    }
+  },
+  {
+    "id": "SIM-1773242690262",
+    "timestamp": "2026-03-11T15:24:50.262Z",
+    "seed": {
+      "inboundFlowRate": 10,
+      "outboundFlowRate": 10,
+      "durationMinutes": 60,
+      "runCount": 2,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "statistics": {
+      "perRunResults": [
+        {
+          "totalProcessed": 20,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.15,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        },
+        {
+          "totalProcessed": 18,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.05555555555555555,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        }
+      ],
+      "aggregatedResults": {
+        "totalProcessed": {
+          "mean": 19,
+          "stdDev": 1.41
+        },
+        "diverted": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "cancelled": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "averageDelayMins": {
+          "mean": 0.1,
+          "stdDev": 0.07
+        },
+        "holdingQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "takeoffQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        }
+      }
+    }
+  },
+  {
+    "id": "SIM-1773243826557",
+    "timestamp": "2026-03-11T15:43:46.557Z",
+    "seed": {
+      "inboundFlowRate": 10,
+      "outboundFlowRate": 10,
+      "durationMinutes": 60,
+      "runCount": 2,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "statistics": {
+      "perRunResults": [
+        {
+          "totalProcessed": 19,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        },
+        {
+          "totalProcessed": 21,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.7142857142857143,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        }
+      ],
+      "aggregatedResults": {
+        "totalProcessed": {
+          "mean": 20,
+          "stdDev": 1.41
+        },
+        "diverted": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "cancelled": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "averageDelayMins": {
+          "mean": 0.36,
+          "stdDev": 0.51
+        },
+        "holdingQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "takeoffQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        }
+      }
+    }
+  },
+  {
+    "id": "SIM-1773247293028",
+    "timestamp": "2026-03-11T16:41:33.028Z",
+    "seed": {
+      "inboundFlowRate": 10,
+      "outboundFlowRate": 10,
+      "durationMinutes": 60,
+      "runCount": 2,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "statistics": {
+      "perRunResults": [
+        {
+          "totalProcessed": 26,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.8846153846153846,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        },
+        {
+          "totalProcessed": 25,
+          "diverted": 0,
+          "cancelled": 0,
+          "averageDelayMins": 0.52,
+          "holdingQueueSizeRemaining": 0,
+          "takeoffQueueSizeRemaining": 0
+        }
+      ],
+      "aggregatedResults": {
+        "totalProcessed": {
+          "mean": 25.5,
+          "stdDev": 0.71
+        },
+        "diverted": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "cancelled": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "averageDelayMins": {
+          "mean": 0.7,
+          "stdDev": 0.26
+        },
+        "holdingQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        },
+        "takeoffQueueSizeRemaining": {
+          "mean": 0,
+          "stdDev": 0
+        }
+      }
+    }
   }
 ]

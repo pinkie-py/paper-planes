@@ -156,7 +156,7 @@ export class Simulation {
               1,
               Math.max(0, remainingMs / this.occupancyDurationMs)
             );
-          planePosPct = 20 + progress * 60;
+          planePosPct = 6 + progress * 98;
         }
 
         return {

@@ -7,8 +7,6 @@ import Header from "@/components/header";
 const DS_BLUE = "#004696";
 const BORDER = "#d0d7de";
 
-const LIVE_DURATION_MINUTES = 60;
-
 const Configure: React.FC = () => {
   const router = useRouter();
 
@@ -18,6 +16,7 @@ const Configure: React.FC = () => {
     numRuns: "",
     seed: "",
     runways: "",
+    durationHours: "1",
   });
 
   const [closedRunways, setClosedRunways] = useState<number[]>([]);
@@ -43,10 +42,15 @@ const Configure: React.FC = () => {
   const displayCount = Math.min(runwayCount, 10);
 
   const handleRunSimulation = () => {
+    const hours = Math.min(
+      24,
+      Math.max(1, Number(formData.durationHours) || 1)
+    );
+
     const payload = {
       inboundFlowRate: Number(formData.inboundFlow) || 15,
       outboundFlowRate: Number(formData.outboundFlow) || 15,
-      durationMinutes: LIVE_DURATION_MINUTES,
+      durationMinutes: hours * 60,
       runCount: Number(formData.numRuns) || 1,
       seed: formData.seed ? Number(formData.seed) : null,
       runways: Array.from({ length: runwayCount }).map((_, i) => ({
@@ -96,10 +100,6 @@ const Configure: React.FC = () => {
           <p style={{ color: "#6b7280", marginTop: "8px" }}>
             Adjust the variables below to simulate airport traffic and runway
             performance.
-          </p>
-          <p style={{ color: "#6b7280", marginTop: "6px", fontSize: "14px" }}>
-            Live preview duration is currently set to{" "}
-            <b>{LIVE_DURATION_MINUTES} simulated minutes</b>.
           </p>
         </header>
 
@@ -166,6 +166,12 @@ const Configure: React.FC = () => {
                 label="No. of runs"
                 name="numRuns"
                 value={formData.numRuns}
+                onChange={handleChange}
+              />
+              <InputBlock
+                label="Simulation duration (hours, 1–24)"
+                name="durationHours"
+                value={formData.durationHours}
                 onChange={handleChange}
               />
               <InputBlock
@@ -242,9 +248,7 @@ const Configure: React.FC = () => {
                           fontSize: "14px",
                         }}
                       >
-                        <span
-                          style={{ fontWeight: "700", color: DS_BLUE }}
-                        >
+                        <span style={{ fontWeight: "700", color: DS_BLUE }}>
                           Runway {String(i + 1).padStart(2, "0")}
                         </span>
 
