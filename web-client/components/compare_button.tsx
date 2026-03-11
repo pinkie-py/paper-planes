@@ -32,14 +32,17 @@ export default function CompareButton({ style }: CompareButtonProps) {
     try {
       const res = await fetch('http://localhost:3000/history');
       const json = await res.json();
-      setHistory(json.data || []);
+      
+      // Reverse the data so the newest entries are at the top
+      const sortedData = json.data ? [...json.data].reverse() : [];
+      
+      setHistory(sortedData);
       setShowPicker(true);
     } catch (err) {
       console.error("Failed to load history", err);
     }
   };
 
-  // Selection and navigation logic remains the same...
   const toggleSelection = (id: string) => {
     if (selectedIds.includes(id)) {
       setSelectedIds(selectedIds.filter(item => item !== id));
@@ -56,7 +59,6 @@ export default function CompareButton({ style }: CompareButtonProps) {
 
   return (
     <>
-      {/* The style is now passed from the outside */}
       <button style={style} onClick={handleOpenPicker}>
         Compare Scenarios
       </button>

@@ -10,10 +10,6 @@ const TEXT = "#1f2937";
 const BORDER = "#d0d7de";
 
 export default function HomePage() {
-  /**
-   * Defined here and passed as a prop to ensure 
-   * consistency across Links and custom Components.
-   */
   const buttonStyle: React.CSSProperties = {
     padding: '10px 20px',
     cursor: 'pointer',
@@ -26,7 +22,7 @@ export default function HomePage() {
     textAlign: 'center',
     textDecoration: 'none',
     display: 'inline-block',
-    boxSizing: 'border-box', // Ensures padding doesn't break the 200px width
+    boxSizing: 'border-box',
     fontSize: '16px',
     fontFamily: 'sans-serif',
     transition: 'background 0.2s ease'
@@ -64,10 +60,6 @@ export default function HomePage() {
             Load Scenario
           </Link>
 
-          {/* Custom Component:
-            We pass the style object as a prop so the internal 
-            button matches the ones above perfectly.
-          */}
           <CompareButton style={buttonStyle} />
         </main>
       </div>
