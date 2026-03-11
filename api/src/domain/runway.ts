@@ -7,6 +7,7 @@ export class Runway {
   private status: RunwayStatus;
   private occupiedBy: Aircraft | null;
   private occupiedUntil: Date | null;
+  private pendingStatus: RunwayStatus | null;
 
   constructor(
     runwayNumber: string,
@@ -18,6 +19,7 @@ export class Runway {
     this.status = status;
     this.occupiedBy = null;
     this.occupiedUntil = null;
+    this.pendingStatus = null;
   }
 
   public getRunwayNumber(): string {
@@ -40,11 +42,16 @@ export class Runway {
     return this.occupiedUntil;
   }
 
+  public getPendingStatus(): RunwayStatus | null {
+    return this.pendingStatus;
+  }
+
   public setMode(m: RunwayMode): void {
     this.mode = m;
   }
 
   public setStatus(s: RunwayStatus): void {
+    this.pendingStatus = null;
     this.status = s;
 
     if (
@@ -53,25 +60,19 @@ export class Runway {
       s === RunwayStatus.EQUIPMENT_FAILURE ||
       s === RunwayStatus.AVAILABLE
     ) {
-      this.clearOccupation();
-      if (s !== RunwayStatus.AVAILABLE) {
-        this.status = s;
-      }
+      this.occupiedBy = null;
+      this.occupiedUntil = null;
     }
+  }
+
+  public queueStatusChange(s: RunwayStatus): void {
+    this.pendingStatus = s;
   }
 
   public occupy(ac: Aircraft, occupiedUntil: Date): void {
     this.occupiedBy = ac;
     this.occupiedUntil = occupiedUntil;
     this.status = RunwayStatus.OCCUPIED;
-  }
-
-  public clearOccupation(): void {
-    this.occupiedBy = null;
-    this.occupiedUntil = null;
-    if (this.status === RunwayStatus.OCCUPIED) {
-      this.status = RunwayStatus.AVAILABLE;
-    }
   }
 
   public getCurrentAction(): "Landing" | "Take-off" | "--" {
@@ -99,9 +100,16 @@ export class Runway {
 
     if (this.status === RunwayStatus.OCCUPIED) {
       if (this.occupiedUntil !== null && t >= this.occupiedUntil) {
-        this.status = RunwayStatus.AVAILABLE;
         this.occupiedBy = null;
         this.occupiedUntil = null;
+
+        if (this.pendingStatus) {
+          this.status = this.pendingStatus;
+          this.pendingStatus = null;
+          return this.status === RunwayStatus.AVAILABLE;
+        }
+
+        this.status = RunwayStatus.AVAILABLE;
         return true;
       }
       return false;

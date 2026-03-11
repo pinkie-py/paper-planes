@@ -114,10 +114,22 @@ export class Simulation {
       if (!target) continue;
 
       target.setMode(update.mode);
-      target.setStatus(update.status);
-      this.logEvent(
-        `${target.getRunwayNumber()} updated to ${update.mode} / ${update.status}`
-      );
+
+      const occupiedNow =
+        target.getStatus() === RunwayStatus.OCCUPIED &&
+        target.getOccupiedBy() !== null;
+
+      if (occupiedNow && update.status !== RunwayStatus.OCCUPIED) {
+        target.queueStatusChange(update.status);
+        this.logEvent(
+          `${target.getRunwayNumber()} will switch to ${update.status} after current aircraft clears`
+        );
+      } else {
+        target.setStatus(update.status);
+        this.logEvent(
+          `${target.getRunwayNumber()} updated to ${update.mode} / ${update.status}`
+        );
+      }
     }
   }
 
