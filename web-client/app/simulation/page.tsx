@@ -501,9 +501,10 @@ export default function SimulationPage() {
           setSim(data.snapshot);
         }
 
-        if (data.finished) {
+      if (data.finished) {
           const finalPayload = {
             status: "success",
+            simId: liveSimId, // <-- Added this so the backend knows the ID
             configurationUsed: data.configurationUsed,
             perRunResults: data.perRunResults ?? [],
             aggregatedResults: data.aggregatedResults ?? {},
@@ -514,17 +515,7 @@ export default function SimulationPage() {
           setPhase("finished");
           setIsPaused(false);
 
-          try {
-            await fetch(`${API_BASE}/save`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(finalPayload),
-            });
-          } catch {
-            // ignore save errors
-          }
+          // We removed the background fetch('/save') from here!
 
           window.clearInterval(interval);
         }
@@ -593,7 +584,7 @@ export default function SimulationPage() {
     }
   };
 
-  async function handleFinishNow() {
+async function handleFinishNow() {
     if (!liveSimId) return;
 
     try {
@@ -618,6 +609,7 @@ export default function SimulationPage() {
 
       const finalPayload = {
         status: "success",
+        simId: liveSimId, // <-- Added this so the backend knows the ID
         configurationUsed: data.configurationUsed,
         perRunResults: data.perRunResults ?? [],
         aggregatedResults: data.aggregatedResults ?? {},
@@ -628,17 +620,7 @@ export default function SimulationPage() {
       setPhase("finished");
       setIsPaused(false);
 
-      try {
-        await fetch(`${API_BASE}/save`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(finalPayload),
-        });
-      } catch {
-        // ignore save failure
-      }
+      // We removed the background fetch('/save') from here!
     } catch (err: any) {
       setPhase("error");
       setErrorMsg(err?.message ?? "Failed to finish simulation");

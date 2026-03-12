@@ -242,17 +242,31 @@ export class AppService {
       // start empty
     }
 
+    const config = payload.configurationUsed || {};
+    const runCount = config.runCount || 1;
+    const inFlow = config.inboundFlowRate || 0;
+    const outFlow = config.outboundFlowRate || 0;
+
+    // Create a clear, easily identifiable name for the simulation
+    const recordName = `Sim: ${runCount} Run(s) (${inFlow} In / ${outFlow} Out)`;
+
     const record = {
-      id: payload.id || `SIM-${Date.now()}`,
+      id: payload.simId || payload.id || `SIM-${Date.now()}`,
+      name: recordName,
       timestamp: new Date().toISOString(),
-      seed: payload.configurationUsed,
-      statistics: {
-        perRunResults: payload.perRunResults,
-        aggregatedResults: payload.aggregatedResults,
-      },
+      configurationUsed: payload.configurationUsed,
+      aggregatedResults: payload.aggregatedResults,
+      perRunResults: payload.perRunResults,
     };
 
-    db.push(record);
+    // Upsert logic: If this exact simId is already saved, overwrite it rather than duplicating
+    const existingIndex = db.findIndex((r) => r.id === record.id);
+    if (existingIndex >= 0) {
+      db[existingIndex] = record;
+    } else {
+      db.push(record);
+    }
+
     await fs.writeFile(this.dbPath, JSON.stringify(db, null, 2));
     return record;
   }

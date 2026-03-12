@@ -74,8 +74,8 @@ export default function ComparePage() {
             Key Risk Metrics Comparison
           </h2>
           <div style={{ maxWidth: 700, margin: '0 auto' }}>
-            <MetricBar label="Diversions" valA={getVal(dataA, 'diverted')} valB={getVal(dataB, 'diverted')} max={10} />
-            <MetricBar label="Cancellations" valA={getVal(dataA, 'cancelled')} valB={getVal(dataB, 'cancelled')} max={10} />
+            <MetricBar label="Diversions" valA={getVal(dataA, 'diverted')} valB={getVal(dataB, 'diverted')} />
+            <MetricBar label="Cancellations" valA={getVal(dataA, 'cancelled')} valB={getVal(dataB, 'cancelled')} />
           </div>
         </section>
 
@@ -122,13 +122,40 @@ function ScenarioConfig({ label, data, config }: any) {
   );
 }
 
-function MetricBar({ label, valA, valB, max }: any) {
+function MetricBar({ label, valA, valB }: any) {
+  // Calculate a dynamic maximum to scale the bars proportionately.
+  // We use 10 as a minimum baseline, but expand automatically if values are higher.
+  const dynamicMax = Math.max(valA, valB, 10);
+  
+  const pctA = Math.max((valA / dynamicMax) * 100, 0);
+  const pctB = Math.max((valB / dynamicMax) * 100, 0);
+
+  // Helper to ensure even 0 has a neat visual representation without breaking bounds
+  const renderBar = (val: number, pct: number, color: string) => (
+    <div style={{ 
+      width: `${pct}%`, 
+      minWidth: val === 0 ? "24px" : "32px", // Ensures text doesn't overflow when 0
+      background: color, 
+      height: 22, 
+      color: '#fff', 
+      fontSize: 12, 
+      fontWeight: 700,
+      display: 'flex', 
+      alignItems: 'center', 
+      paddingLeft: 8,
+      borderRadius: "0 4px 4px 0",
+      transition: "width 0.3s ease" // Adds a nice smooth load animation
+    }}>
+      {val}
+    </div>
+  );
+
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', alignItems: 'center', marginBottom: 18 }}>
       <div style={{ fontSize: 13, fontWeight: 600 }}>{label}</div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderLeft: `2px solid ${TEXT}`, paddingLeft: 8 }}>
-        <div style={{ width: `${Math.min((valA/max)*100, 100)}%`, background: '#9aa4b2', height: 20, color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>{valA}</div>
-        <div style={{ width: `${Math.min((valB/max)*100, 100)}%`, background: DS_BLUE, height: 20, color: '#fff', fontSize: 11, display: 'flex', alignItems: 'center', paddingLeft: 8 }}>{valB}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderLeft: `2px solid ${TEXT}` }}>
+        {renderBar(valA, pctA, '#9aa4b2')}
+        {renderBar(valB, pctB, DS_BLUE)}
       </div>
     </div>
   );
