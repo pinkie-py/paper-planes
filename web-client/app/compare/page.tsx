@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Header from "@/components/header";
+import Link from "next/link";
 
 const DS_BLUE = "#004696";
 const TEXT = "#1f2937";
@@ -23,14 +24,12 @@ export default function ComparePage() {
     async function fetchComparisonData() {
       try {
         setLoading(true);
-        // Fetching the full history list 
         const res = await fetch('http://localhost:3000/history');
         const json = await res.json();
-        const history = json.data;
+        const history = json.data || [];
 
-        // Finding the specific items by ID
-        const scenarioA = history.find((item: any) => item.id === idA);
-        const scenarioB = history.find((item: any) => item.id === idB);
+        const scenarioA = history.find((item: any) => String(item.id) === String(idA));
+        const scenarioB = history.find((item: any) => String(item.id) === String(idB));
 
         setDataA(scenarioA);
         setDataB(scenarioB);
@@ -43,14 +42,56 @@ export default function ComparePage() {
 
     if (idA && idB) {
       fetchComparisonData();
+    } else {
+      setLoading(false); 
     }
   }, [idA, idB]);
 
-  if (loading) return <div style={{ padding: 50, textAlign: 'center' }}>Loading Comparison...</div>;
-  if (!dataA || !dataB) return <div style={{ padding: 50, textAlign: 'center' }}>Could not find simulation data.</div>;
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: LIGHT_BG }}>
+        <Header />
+        <div style={{ padding: 100, textAlign: 'center', fontSize: '18px' }}>Loading Comparison...</div>
+      </div>
+    );
+  }
 
-  // Helper to get nested values safely
-  const getVal = (data: any, key: string) => data?.aggregatedResults?.[key]?.mean ?? 0;
+  if (!idA || !idB) {
+    return (
+      <div style={{ minHeight: "100vh", background: LIGHT_BG, color: TEXT, fontFamily: "sans-serif" }}>
+        <Header />
+        <main style={{ maxWidth: 800, margin: "80px auto", padding: "40px", textAlign: "center", background: "#fff", border: `1px solid ${BORDER}`, borderRadius: "8px" }}>
+          <h2 style={{ color: DS_BLUE, marginBottom: "16px" }}>No Scenarios Selected</h2>
+          <p style={{ marginBottom: "32px", color: "#666" }}>You need to select two scenarios from your history to compare them.</p>
+          <Link href="/simulation" style={{ padding: "12px 24px", background: DS_BLUE, color: "#fff", textDecoration: "none", borderRadius: "6px", fontWeight: "bold" }}>
+            Run a New Simulation
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  if (!dataA || !dataB) {
+    return (
+      <div style={{ minHeight: "100vh", background: LIGHT_BG, color: TEXT, fontFamily: "sans-serif" }}>
+        <Header />
+        <main style={{ maxWidth: 800, margin: "80px auto", padding: "40px", textAlign: "center", background: "#fff", border: `1px solid ${BORDER}`, borderRadius: "8px" }}>
+          <h2 style={{ color: DS_BLUE, marginBottom: "16px" }}>Simulation Data Not Found</h2>
+          <p style={{ marginBottom: "32px", color: "#666" }}>The runs you are trying to compare don't exist in the database (they may have been cleared).</p>
+          <Link href="/simulation" style={{ padding: "12px 24px", background: DS_BLUE, color: "#fff", textDecoration: "none", borderRadius: "6px", fontWeight: "bold" }}>
+            Start a Clean Run
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  // UPDATED Helper: Fetches the row from the ResultsResponse data block and averages it
+  const getVal = (data: any, label: string) => {
+    const row = data?.aggregatedResults?.rows?.find((r: any) => r.label === label);
+    if (!row || !row.values || row.values.length === 0) return 0;
+    return Number((row.values.reduce((a: number, b: number) => a + b, 0) / row.values.length).toFixed(1));
+  };
   const getConfig = (data: any) => data?.configurationUsed ?? {};
 
   return (
@@ -62,24 +103,22 @@ export default function ComparePage() {
           Compare Scenarios
         </h1>
 
-        {/* 1. Configuration Cards */}
         <div style={{ display: "flex", gap: "20px", marginBottom: 40 }}>
           <ScenarioConfig label="A" data={dataA} config={getConfig(dataA)} />
           <ScenarioConfig label="B" data={dataB} config={getConfig(dataB)} />
         </div>
 
-        {/* 2. Visual Risk Metrics */}
         <section style={{ border: `1px solid ${BORDER}`, background: PANEL_BG, padding: 24, marginBottom: 40 }}>
           <h2 style={{ textAlign: "center", marginTop: 0, marginBottom: 26, fontSize: 18, fontWeight: 800 }}>
             Key Risk Metrics Comparison
           </h2>
           <div style={{ maxWidth: 700, margin: '0 auto' }}>
-            <MetricBar label="Diversions" valA={getVal(dataA, 'diverted')} valB={getVal(dataB, 'diverted')} />
-            <MetricBar label="Cancellations" valA={getVal(dataA, 'cancelled')} valB={getVal(dataB, 'cancelled')} />
+            <MetricBar label="Diversions" valA={getVal(dataA, 'Aircraft Diversions')} valB={getVal(dataB, 'Aircraft Diversions')} />
+            <MetricBar label="Cancellations" valA={getVal(dataA, 'Cancellations')} valB={getVal(dataB, 'Cancellations')} />
+            <MetricBar label="Fuel Emergencies" valA={getVal(dataA, 'Fuel Emergency Events')} valB={getVal(dataB, 'Fuel Emergency Events')} />
           </div>
         </section>
 
-        {/* 3. Data Table */}
         <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff", border: `1px solid ${BORDER}` }}>
           <thead>
             <tr style={{ background: "#f3f4f6" }}>
@@ -91,12 +130,13 @@ export default function ComparePage() {
             </tr>
           </thead>
           <tbody>
-             <TableRow label="Aircraft Diversions" valA={getVal(dataA, 'diverted')} valB={getVal(dataB, 'diverted')} category="Risk" rowSpan={2} isLowerBetter />
-             <TableRow label="Cancellations" valA={getVal(dataA, 'cancelled')} valB={getVal(dataB, 'cancelled')} isLowerBetter />
+             <TableRow label="Aircraft Diversions" valA={getVal(dataA, 'Aircraft Diversions')} valB={getVal(dataB, 'Aircraft Diversions')} category="Risk" rowSpan={3} isLowerBetter />
+             <TableRow label="Cancellations" valA={getVal(dataA, 'Cancellations')} valB={getVal(dataB, 'Cancellations')} isLowerBetter />
+             <TableRow label="Fuel Emergencies" valA={getVal(dataA, 'Fuel Emergency Events')} valB={getVal(dataB, 'Fuel Emergency Events')} isLowerBetter />
              
-             <TableRow label="Avg Landing Queue" valA={getVal(dataA, 'holdingQueueSizeRemaining')} valB={getVal(dataB, 'holdingQueueSizeRemaining')} category="Performance" rowSpan={3} isLowerBetter />
-             <TableRow label="Avg Take-Off Queue" valA={getVal(dataA, 'takeoffQueueSizeRemaining')} valB={getVal(dataB, 'takeoffQueueSizeRemaining')} isLowerBetter />
-             <TableRow label="Avg Delay /mins" valA={getVal(dataA, 'averageDelayMins')} valB={getVal(dataB, 'averageDelayMins')} isLowerBetter />
+             <TableRow label="Avg Landing Queue" valA={getVal(dataA, 'Avg Landing Queue size')} valB={getVal(dataB, 'Avg Landing Queue size')} category="Performance" rowSpan={3} isLowerBetter />
+             <TableRow label="Avg Take-Off Queue" valA={getVal(dataA, 'Avg Take-Off Queue size')} valB={getVal(dataB, 'Avg Take-Off Queue size')} isLowerBetter />
+             <TableRow label="Avg Delay /mins" valA={getVal(dataA, 'Avg Delay / mins')} valB={getVal(dataB, 'Avg Delay / mins')} isLowerBetter />
           </tbody>
         </table>
       </main>
@@ -123,18 +163,14 @@ function ScenarioConfig({ label, data, config }: any) {
 }
 
 function MetricBar({ label, valA, valB }: any) {
-  // Calculate a dynamic maximum to scale the bars proportionately.
-  // We use 10 as a minimum baseline, but expand automatically if values are higher.
   const dynamicMax = Math.max(valA, valB, 10);
-  
   const pctA = Math.max((valA / dynamicMax) * 100, 0);
   const pctB = Math.max((valB / dynamicMax) * 100, 0);
 
-  // Helper to ensure even 0 has a neat visual representation without breaking bounds
   const renderBar = (val: number, pct: number, color: string) => (
     <div style={{ 
       width: `${pct}%`, 
-      minWidth: val === 0 ? "24px" : "32px", // Ensures text doesn't overflow when 0
+      minWidth: val === 0 ? "24px" : "32px",
       background: color, 
       height: 22, 
       color: '#fff', 
@@ -144,7 +180,7 @@ function MetricBar({ label, valA, valB }: any) {
       alignItems: 'center', 
       paddingLeft: 8,
       borderRadius: "0 4px 4px 0",
-      transition: "width 0.3s ease" // Adds a nice smooth load animation
+      transition: "width 0.3s ease"
     }}>
       {val}
     </div>

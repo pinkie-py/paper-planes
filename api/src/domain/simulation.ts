@@ -55,6 +55,7 @@ export type SimulationSnapshot = {
 
 export class Simulation {
   private currentTime: Date;
+  private startTimeMs: number; // ADDED: Tracks simulation absolute start for accurate delay math
   private elapsedMinutes = 0;
 
   private holdingPattern: Aircraft[] = [];
@@ -65,11 +66,16 @@ export class Simulation {
   private runways: Runway[];
   private log: SnapshotLogEntry[] = [];
 
+  // ADDED: Master arrays to satisfy the analytics service requirements
+  private allAircraft: Aircraft[] = [];
+  private historyTicks: any[] = [];
+
   private aircraftCounter = 0;
   private readonly occupancyDurationMs = 3 * 60 * 1000;
 
   constructor(private config: SimulationConfig) {
     this.currentTime = new Date();
+    this.startTimeMs = this.currentTime.getTime();
     this.runways = config.runways.map(
       (r) => new Runway(r.id, r.mode, r.status)
     );
@@ -87,6 +93,16 @@ export class Simulation {
     this.checkGlobalRunwayClosure();
     this.runways.forEach((r) => r.isAvailable(this.currentTime));
     this.allocateRunways();
+
+    // ADDED: Save a tick snapshot for the analytics module
+    this.historyTicks.push({
+      minute: this.elapsedMinutes,
+      holdingCount: this.holdingPattern.length,
+      takeoffQueueCount: this.takeoffQueue.length,
+      occupiedRunwaysCount: this.runways.filter(
+        (r) => r.getStatus() === RunwayStatus.OCCUPIED
+      ).length,
+    });
   }
 
   public run(): any {
@@ -201,24 +217,49 @@ export class Simulation {
     };
   }
 
+  // REWRITTEN: Now perfectly generates the `RunResult` object for your analytics calculator!
   public getMetrics() {
-    const delays = this.completedFlights.map(
-      (ac) =>
-        (ac.getActualTime().getTime() - ac.getScheduledTime().getTime()) /
-        60000
-    );
-    const avgDelay =
-      delays.length > 0
-        ? delays.reduce((a, b) => a + b, 0) / delays.length
-        : 0;
+    const configOut = {
+      inboundFlowPerHour: this.config.inboundFlowRate,
+      outboundFlowPerHour: this.config.outboundFlowRate,
+      runways: this.config.runways.length,
+      seed: this.config.seed ? String(this.config.seed) : "random",
+    };
+
+    const aircraftOut = this.allAircraft.map((ac) => {
+      const schedMs = ac.getScheduledTime().getTime();
+      let actMs = ac.getActualTime().getTime();
+
+      let st = ac.getState();
+      
+      // If they made it to the runway successfully, treat them as fully processed (EXITED)
+      if (st === AircraftState.RUNWAY) {
+        st = AircraftState.EXITED;
+      }
+
+      // If they are still stuck in holding/takeoff at the end, their delay continues until simulation ends
+      if (st === AircraftState.HOLDING || st === AircraftState.TAKEOFF_QUEUE) {
+        actMs = this.currentTime.getTime();
+      }
+
+      const waitMins = Math.max(0, (actMs - schedMs) / 60000);
+
+      return {
+        aircraftId: ac.getAircraftID(),
+        flightType: ac.getType(),
+        finalState: st,
+        holdingMinutes: ac.getType() === FlightType.INBOUND ? waitMins : 0,
+        takeoffQueueMinutes: ac.getType() === FlightType.OUTBOUND ? waitMins : 0,
+        scheduledMinute: Math.floor((schedMs - this.startTimeMs) / 60000),
+        actualMinute: Math.floor((actMs - this.startTimeMs) / 60000),
+        emergencyStatus: ac.getEmergencyStatus(),
+      };
+    });
 
     return {
-      totalProcessed: this.completedFlights.length,
-      diverted: this.divertedFlights.length,
-      cancelled: this.cancelledFlights.length,
-      averageDelayMins: avgDelay,
-      holdingQueueSizeRemaining: this.holdingPattern.length,
-      takeoffQueueSizeRemaining: this.takeoffQueue.length,
+      config: configOut,
+      ticks: this.historyTicks,
+      aircraft: aircraftOut,
     };
   }
 
@@ -238,6 +279,7 @@ export class Simulation {
       );
       ac.transitionTo(AircraftState.HOLDING);
       this.holdingPattern.push(ac);
+      this.allAircraft.push(ac); // ADDED
     }
 
     if (Math.random() < outboundProb) {
@@ -251,6 +293,7 @@ export class Simulation {
       );
       ac.transitionTo(AircraftState.TAKEOFF_QUEUE);
       this.takeoffQueue.push(ac);
+      this.allAircraft.push(ac); // ADDED
     }
   }
 
@@ -261,6 +304,7 @@ export class Simulation {
 
       if (ac.getFuelRemaining() < 10) {
         ac.transitionTo(AircraftState.DIVERTED);
+        ac.setActualTime(this.currentTime); // ADDED: Record exact time of diversion
         this.divertedFlights.push(ac);
         this.holdingPattern.splice(i, 1);
         this.logEvent(`${ac.getAircraftID()} diverted due to low fuel`);
@@ -272,6 +316,7 @@ export class Simulation {
       ac.checkWaitTime(this.currentTime);
 
       if (ac.getState() === AircraftState.CANCELLED) {
+        ac.setActualTime(this.currentTime); // ADDED: Record exact time of cancellation
         this.cancelledFlights.push(ac);
         this.takeoffQueue.splice(i, 1);
         this.logEvent(
@@ -291,10 +336,12 @@ export class Simulation {
     if (!hasAvailableRunway) {
       this.holdingPattern.forEach((ac) => {
         ac.transitionTo(AircraftState.DIVERTED);
+        ac.setActualTime(this.currentTime); // ADDED
         this.divertedFlights.push(ac);
       });
       this.takeoffQueue.forEach((ac) => {
         ac.transitionTo(AircraftState.CANCELLED);
+        ac.setActualTime(this.currentTime); // ADDED
         this.cancelledFlights.push(ac);
       });
 

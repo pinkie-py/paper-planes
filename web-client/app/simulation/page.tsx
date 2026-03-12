@@ -584,7 +584,7 @@ export default function SimulationPage() {
     }
   };
 
-async function handleFinishNow() {
+  async function handleFinishNow() {
     if (!liveSimId) return;
 
     try {

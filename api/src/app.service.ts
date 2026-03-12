@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import { Simulation, SimulationConfig } from "./domain/simulation";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { formatResultsResponse } from "./analytics/metrics/results-formatter"; // <-- INTEGRATED HERE
 
 type LiveSession = {
   id: string;
@@ -34,7 +35,8 @@ export class AppService {
       allResults.push(sim.run());
     }
 
-    const aggregated = this.aggregateMetrics(allResults);
+    // Call your powerful analytics formatter here
+    const aggregated = formatResultsResponse(allResults);
 
     return {
       status: "success",
@@ -127,7 +129,8 @@ export class AppService {
         finished: true,
         configurationUsed: session.baseConfig,
         perRunResults: session.perRunResults,
-        aggregatedResults: this.aggregateMetrics(session.perRunResults),
+        // Call your powerful analytics formatter here
+        aggregatedResults: formatResultsResponse(session.perRunResults),
         snapshot: session.currentSimulation.getSnapshot(
           session.currentRunIndex,
           session.totalRuns,
@@ -157,21 +160,21 @@ export class AppService {
     if (!session) return { error: "Simulation session not found." };
 
     if (session.finished) {
-        return session.finalPayload;
+      return session.finalPayload;
     }
 
     let guard = 0;
     while (!session.finished && guard < 100000) {
-        this.tickLiveSimulation(simId);
-        guard += 1;
+      this.tickLiveSimulation(simId);
+      guard += 1;
     }
 
     if (!session.finished) {
-        return { error: "Unable to finish simulation safely." };
+      return { error: "Unable to finish simulation safely." };
     }
 
     return session.finalPayload;
-    }
+  }
 
   updateLiveRunways(
     simId: string,
@@ -206,33 +209,6 @@ export class AppService {
     };
   }
 
-  private aggregateMetrics(results: any[]) {
-    if (!results || results.length === 0) return null;
-
-    const keys = Object.keys(results[0]);
-    const aggregated: Record<string, { mean: number; stdDev: number }> = {};
-
-    for (const key of keys) {
-      const values = results.map((r) => r[key]);
-      const mean = values.reduce((a, b) => a + b, 0) / values.length;
-
-      let stdDev = 0;
-      if (values.length > 1) {
-        const variance =
-          values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
-          (values.length - 1);
-        stdDev = Math.sqrt(variance);
-      }
-
-      aggregated[key] = {
-        mean: Number(mean.toFixed(2)),
-        stdDev: Number(stdDev.toFixed(2)),
-      };
-    }
-
-    return aggregated;
-  }
-
   async saveSimulation(payload: any) {
     let db = [];
     try {
@@ -247,7 +223,6 @@ export class AppService {
     const inFlow = config.inboundFlowRate || 0;
     const outFlow = config.outboundFlowRate || 0;
 
-    // Create a clear, easily identifiable name for the simulation
     const recordName = `Sim: ${runCount} Run(s) (${inFlow} In / ${outFlow} Out)`;
 
     const record = {
@@ -259,7 +234,6 @@ export class AppService {
       perRunResults: payload.perRunResults,
     };
 
-    // Upsert logic: If this exact simId is already saved, overwrite it rather than duplicating
     const existingIndex = db.findIndex((r) => r.id === record.id);
     if (existingIndex >= 0) {
       db[existingIndex] = record;
