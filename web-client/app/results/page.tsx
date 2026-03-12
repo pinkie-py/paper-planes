@@ -507,7 +507,10 @@ export default function ResultsPage() {
             background: "#fff",
             color: TEXT,
             fontWeight: 700,
-          }} />
+            
+          }}>
+            Compare Scenarios
+          </CompareButton>
 
           <button
             onClick={handleSaveResults}

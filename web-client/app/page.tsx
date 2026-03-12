@@ -60,7 +60,9 @@ export default function HomePage() {
             Load Scenario
           </Link>
 
-          <CompareButton style={buttonStyle} />
+          <CompareButton style={buttonStyle}>
+            Compare Scenarios
+          </CompareButton>
         </main>
       </div>
     </div>

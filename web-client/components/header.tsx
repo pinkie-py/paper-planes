@@ -2,6 +2,8 @@
 
 import React from "react";
 import Link from "next/link";
+import CompareButton from "./compare_button";
+
 import { usePathname } from "next/navigation";
 
 const DS_BLUE = "#004696";
@@ -20,6 +22,11 @@ export default function header() {
     fontWeight: 600,
     fontSize: 14,
     transition: "0.2s",
+
+
+    border: "none",            // Removes the default black outline
+    cursor: "pointer",         // Makes it feel like a link
+    fontFamily: "inherit",     // Prevents the button from using a different font
   });
 
   return (
@@ -37,7 +44,9 @@ export default function header() {
           <Link href="/" style={navLinkStyle("/")}>Home</Link>
           <Link href="/configure" style={navLinkStyle("/configure")}>Configure</Link>
           <Link href="/results" style={navLinkStyle("/results")}>Results</Link>
-          <Link href="/compare" style={navLinkStyle("/compare")}>Compare</Link>
+          <CompareButton style={navLinkStyle("/compare")}>
+            Compare
+          </CompareButton>
         </nav>
       </div>
     </header>

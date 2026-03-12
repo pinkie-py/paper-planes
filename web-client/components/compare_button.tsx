@@ -3,22 +3,24 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
-// Define the interface for the props
+// 1. Updated Interface to accept children (text/content) and style
 interface CompareButtonProps {
+  label?: React.ReactNode; 
   style?: React.CSSProperties;
+  children?: React.ReactNode; 
 }
 
 const DS_BLUE = "#004696";
 const TEXT = "#1f2937";
 const BORDER = "#d0d7de";
 
-export default function CompareButton({ style }: CompareButtonProps) {
+export default function CompareButton({ style, children, label }: CompareButtonProps) {
   const router = useRouter();
   const [showPicker, setShowPicker] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Internal styles for the modal (these stay inside)
+  // Internal styles for the modal
   const modalOverlayStyle: React.CSSProperties = {
     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
     background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
@@ -32,10 +34,7 @@ export default function CompareButton({ style }: CompareButtonProps) {
     try {
       const res = await fetch('http://localhost:3000/history');
       const json = await res.json();
-      
-      // Reverse the data so the newest entries are at the top
       const sortedData = json.data ? [...json.data].reverse() : [];
-      
       setHistory(sortedData);
       setShowPicker(true);
     } catch (err) {
@@ -59,15 +58,18 @@ export default function CompareButton({ style }: CompareButtonProps) {
 
   return (
     <>
+      {/* 2. Uses children OR label prop, default to 'Compare' if neither is provided */}
       <button style={style} onClick={handleOpenPicker}>
-        Compare Scenarios
+        {children || label || "Compare"}
       </button>
 
       {showPicker && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
-            <h3 style={{ marginTop: 0, color: TEXT }}>Select 2 Scenarios</h3>
-            <p style={{ fontSize: '14px', color: '#666' }}>{selectedIds.length} of 2 selected</p>
+            <h3 style={{ marginTop: 0, color: TEXT, fontFamily: 'sans-serif' }}>Select 2 Scenarios</h3>
+            <p style={{ fontSize: '14px', color: '#666', fontFamily: 'sans-serif' }}>
+              {selectedIds.length} of 2 selected
+            </p>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', margin: '20px 0' }}>
               {history.map((sim) => (
@@ -79,7 +81,8 @@ export default function CompareButton({ style }: CompareButtonProps) {
                     border: `2px solid ${selectedIds.includes(sim.id) ? DS_BLUE : BORDER}`,
                     borderRadius: '4px',
                     cursor: 'pointer',
-                    textAlign: 'left'
+                    textAlign: 'left',
+                    fontFamily: 'sans-serif'
                   }}
                 >
                   <div style={{ fontWeight: 'bold', color: TEXT }}>{sim.name || `Sim ${sim.id.slice(0,5)}`}</div>
@@ -89,16 +92,28 @@ export default function CompareButton({ style }: CompareButtonProps) {
             </div>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowPicker(false)} style={{ ...style, width: 'auto' }}>Cancel</button>
+              <button 
+                onClick={() => setShowPicker(false)} 
+                style={{ 
+                  background: 'none', 
+                  border: 'none', 
+                  cursor: 'pointer', 
+                  color: '#666',
+                  fontWeight: 600
+                }}
+              >
+                Cancel
+              </button>
               <button 
                 onClick={handleCompareGo} 
                 disabled={selectedIds.length !== 2}
                 style={{
-                  ...style, 
-                  width: 'auto', 
+                  padding: '8px 16px',
+                  borderRadius: '6px',
                   background: selectedIds.length === 2 ? DS_BLUE : '#ccc',
                   color: '#fff',
                   border: 'none',
+                  fontWeight: 600,
                   cursor: selectedIds.length === 2 ? 'pointer' : 'not-allowed'
                 }}
               >
