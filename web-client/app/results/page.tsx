@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import Header from "@/components/header"; 
+import Header from "@/components/header";
+import CompareButton from "@/components/compare_button";
 
 const DS_BLUE = "#004696";
 const TEXT = "#1f2937";
@@ -11,36 +12,69 @@ const LIGHT_BG = "#f6f8fb";
 const PANEL_BG = "#eef2f6";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
+const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export default function ResultsPage() {
   const [simData, setSimData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Load the live data passed from the configurator
   useEffect(() => {
-    const storedData = sessionStorage.getItem('latestSimulation');
+    const liveData = sessionStorage.getItem("pp:lastResults");
+    const legacyData = sessionStorage.getItem("latestSimulation");
+    const storedData = liveData ?? legacyData;
+
     if (storedData) {
       setSimData(JSON.parse(storedData));
     }
   }, []);
 
   if (!simData) {
+    const buttonStyle: React.CSSProperties = {
+      padding: '10px 20px',
+      cursor: 'pointer',
+      width: '200px',
+      fontWeight: '600',
+      background: '#fff',
+      border: `1px solid ${BORDER}`,
+      color: TEXT,
+      borderRadius: '4px'
+    };
+
     return (
-      <div style={{ minHeight: "100vh", background: LIGHT_BG, color: TEXT, display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '100px' }}>
+      <div style={{ minHeight: "100vh", background: LIGHT_BG, fontFamily: 'sans-serif' }}>
         <Header />
-        <h2 style={{ fontSize: 24, marginBottom: 20 }}>No simulation data found.</h2>
-        <p style={{ marginBottom: 20 }}>Please configure and run a scenario first.</p>
-        <Link href="/configure">
-          <button style={{ padding: "12px 24px", background: DS_BLUE, color: "#fff", borderRadius: 8, fontWeight: 700, border: 'none', cursor: 'pointer' }}>
-            Go to Configurator
-          </button>
-        </Link>
+        
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <header style={{ marginTop: '20px' }}>
+            <h1 style={{ color: DS_BLUE, margin: '0 0 10px' }}>Airport simulation</h1>
+            <h2 style={{ fontWeight: '400', fontSize: '18px' }}>No simulation data found</h2>
+          </header>
+
+          <main style={{ marginTop: '40px', display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
+            <p style={{ color: "#6b7280", marginBottom: "10px" }}>
+              Please configure and run a scenario first to view results.
+            </p>
+            <Link href="/configure">
+              <button style={{ ...buttonStyle, background: DS_BLUE, color: '#fff', border: 'none' }}>
+                Back to configure
+              </button>
+            </Link>
+            <Link href="/">
+              <button style={buttonStyle}>
+                Back to Home
+              </button>
+            </Link>
+          </main>
+        </div>
       </div>
     );
   }
 
   const config = simData.configurationUsed;
   const aggregated = simData.aggregatedResults;
+  
+  // Extract rows dynamically supplied by analytics API
+  const metricRows = aggregated?.rows || [];
 
   const scenario = {
     name: "Custom Simulation",
@@ -49,39 +83,40 @@ export default function ResultsPage() {
     runways: config.runways.length,
     inboundFlow: config.inboundFlowRate,
     outboundFlow: config.outboundFlowRate,
-    maxWaitTimeMins: 30, // Based on SR-3 constraints
+    maxWaitTimeMins: 30,
   };
 
-  // Map backend JSON to table rows dynamically
-  const tableMappings = [
-    { key: "diverted", label: "Aircraft Diversions" },
-    { key: "cancelled", label: "Cancellations" },
-    { key: "holdingQueueSizeRemaining", label: "Remaining Landing Queue" },
-    { key: "takeoffQueueSizeRemaining", label: "Remaining Take-Off Queue" },
-    { key: "averageDelayMins", label: "Avg Delay / mins" },
-    { key: "totalProcessed", label: "Total Aircraft Processed" },
-  ];
+  // Helper to find specific rows by the label assigned in results-formatter.ts
+  const getMean = (label: string) => {
+    const row = metricRows.find((r: any) => r.label === label);
+    if (!row || !row.values || row.values.length === 0) return 0;
+    const mean = row.values.reduce((a: number, b: number) => a + b, 0) / row.values.length;
+    return round2(mean);
+  };
 
-  // Map backend JSON directly to the Aggregated Summary Boxes
+  // Safe Math formulas to prevent NaN
+  const calculateMean = (vals: number[]) => vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : 0;
+  const calculateStdDev = (vals: number[], mean: number) => vals.length > 1 ? Math.sqrt(vals.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (vals.length - 1)) : 0;
+
   const aggRisk = [
-    { label: "Mean Aircraft Diversions", value: aggregated.diverted.mean },
-    { label: "Mean Cancellations", value: aggregated.cancelled.mean },
+    { label: "Mean Aircraft Diversions", value: getMean("Aircraft Diversions") },
+    { label: "Mean Cancellations", value: getMean("Cancellations") },
+    { label: "Mean Fuel Emergencies", value: getMean("Fuel Emergency Events") },
   ];
 
   const aggPerf = [
-    { label: "Avg remaining landing queue", value: aggregated.holdingQueueSizeRemaining.mean },
-    { label: "Avg remaining take-off queue", value: aggregated.takeoffQueueSizeRemaining.mean },
-    { label: "Avg delay / mins", value: aggregated.averageDelayMins.mean },
-    { label: "Mean aircraft processed", value: aggregated.totalProcessed.mean },
+    { label: "Avg remaining landing queue", value: getMean("Avg Landing Queue size") },
+    { label: "Avg remaining take-off queue", value: getMean("Avg Take-Off Queue size") },
+    { label: "Avg delay / mins", value: getMean("Avg Delay / mins") },
+    { label: "Mean aircraft processed", value: getMean("Aircraft Processed") },
   ];
 
-  // Hook up the Save feature to the backend database
   const handleSaveResults = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch('http://localhost:3000/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("http://localhost:3000/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(simData),
       });
 
@@ -122,20 +157,20 @@ export default function ResultsPage() {
 
         <section style={{ border: `1px solid ${BORDER}`, background: PANEL_BG, padding: 16 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 16 }}>
-            {/* Aggregated Risk */}
             <div style={{ background: "#fff", border: `1px solid ${BORDER}`, padding: 14 }}>
               <h3 style={{ textAlign: "center", margin: "0 0 12px", fontSize: 16, fontWeight: 800 }}>Aggregated Risk</h3>
               <div style={{ display: "grid", gap: 10 }}>
                 {aggRisk.map((item) => (
                   <div key={item.label} style={{ display: "grid", gridTemplateColumns: "1fr 70px", alignItems: "center", gap: 10 }}>
                     <div style={{ fontWeight: 700 }}>{item.label}</div>
-                    <div style={{ border: `2px solid ${TEXT}`, textAlign: "center", padding: "6px 0", fontWeight: 800 }}>{item.value}</div>
+                    <div style={{ border: `2px solid ${TEXT}`, textAlign: "center", padding: "6px 0", fontWeight: 800 }}>
+                      {item.value}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Aggregated Performance */}
             <div style={{ background: "#fff", border: `1px solid ${BORDER}`, padding: 14 }}>
               <h3 style={{ textAlign: "center", margin: "0 0 12px", fontSize: 16, fontWeight: 800 }}>Aggregated Performance</h3>
               <div style={{ display: "grid", gap: 10 }}>
@@ -143,7 +178,9 @@ export default function ResultsPage() {
                   <div key={item.label} style={{ display: "grid", gridTemplateColumns: "auto 1fr 70px", alignItems: "center", gap: 10, fontSize: 14 }}>
                     <div>{item.label}</div>
                     <div style={{ borderBottom: "2px dotted #9aa4b2", height: 0 }} />
-                    <div style={{ border: `1px solid ${TEXT}`, textAlign: "center", padding: "5px 0" }}>{item.value}</div>
+                    <div style={{ border: `1px solid ${TEXT}`, textAlign: "center", padding: "5px 0" }}>
+                      {item.value}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -167,22 +204,27 @@ export default function ResultsPage() {
                 </tr>
               </thead>
               <tbody>
-                {tableMappings.map((mapping) => (
-                  <tr key={mapping.key}>
-                    <td style={{ border: `1px solid ${BORDER}`, padding: 10 }}>{mapping.label}</td>
-                    {simData.perRunResults.map((run: any, i: number) => (
-                      <td key={i} style={{ border: `1px solid ${BORDER}`, padding: 10, textAlign: "center" }}>
-                        {round1(run[mapping.key])}
+                {metricRows.map((row: any) => {
+                  const mean = calculateMean(row.values);
+                  const stdDev = calculateStdDev(row.values, mean);
+
+                  return (
+                    <tr key={row.label}>
+                      <td style={{ border: `1px solid ${BORDER}`, padding: 10 }}>{row.label}</td>
+                      {row.values.map((val: number, i: number) => (
+                        <td key={i} style={{ border: `1px solid ${BORDER}`, padding: 10, textAlign: "center" }}>
+                          {round1(val)}
+                        </td>
+                      ))}
+                      <td style={{ border: `1px solid ${BORDER}`, padding: 10, textAlign: "center", fontWeight: "bold" }}>
+                        {round2(mean)}
                       </td>
-                    ))}
-                    <td style={{ border: `1px solid ${BORDER}`, padding: 10, textAlign: "center", fontWeight: "bold" }}>
-                      {aggregated[mapping.key].mean}
-                    </td>
-                    <td style={{ border: `1px solid ${BORDER}`, padding: 10, textAlign: "center", color: "#6b7280" }}>
-                      {aggregated[mapping.key].stdDev}
-                    </td>
-                  </tr>
-                ))}
+                      <td style={{ border: `1px solid ${BORDER}`, padding: 10, textAlign: "center", color: "#6b7280" }}>
+                        {round2(stdDev)}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -194,15 +236,15 @@ export default function ResultsPage() {
               New Scenario
             </button>
           </Link>
-          <Link href="/compare">
-            <button style={{ padding: "12px 18px", cursor: "pointer", border: `1px solid ${BORDER}`, borderRadius: 8, background: "#fff", color: TEXT, fontWeight: 700 }}>
-              Compare Scenarios
-            </button>
-          </Link>
-          <button 
-            onClick={handleSaveResults} 
+
+          <CompareButton style={{ padding: "12px 18px", cursor: "pointer", border: `1px solid ${BORDER}`, borderRadius: 8, background: "#fff", color: TEXT, fontWeight: 700 }} />
+
+          <button
+            onClick={handleSaveResults}
             disabled={isSaving}
-            style={{ padding: "12px 18px", cursor: isSaving ? "not-allowed" : "pointer", border: `1px solid ${BORDER}`, borderRadius: 8, background: isSaving ? "#f3f4f6" : "#fff", color: TEXT, fontWeight: 700 }}
+            style={{
+              padding: "12px 18px", cursor: isSaving ? "not-allowed" : "pointer", border: `1px solid ${BORDER}`, borderRadius: 8, background: isSaving ? "#f3f4f6" : "#fff", color: TEXT, fontWeight: 700
+            }}
           >
             {isSaving ? "Saving..." : "Save Results"}
           </button>

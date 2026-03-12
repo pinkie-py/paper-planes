@@ -1,5 +1,5 @@
 import { Aircraft } from "./aircraft";
-import { RunwayMode, RunwayStatus } from "./types";
+import { FlightType, RunwayMode, RunwayStatus } from "./types";
 
 export class Runway {
   private runwayNumber: string;
@@ -7,6 +7,7 @@ export class Runway {
   private status: RunwayStatus;
   private occupiedBy: Aircraft | null;
   private occupiedUntil: Date | null;
+  private pendingStatus: RunwayStatus | null;
 
   constructor(
     runwayNumber: string,
@@ -16,12 +17,11 @@ export class Runway {
     this.runwayNumber = runwayNumber;
     this.mode = mode;
     this.status = status;
-
     this.occupiedBy = null;
     this.occupiedUntil = null;
+    this.pendingStatus = null;
   }
 
-  
   public getRunwayNumber(): string {
     return this.runwayNumber;
   }
@@ -42,50 +42,79 @@ export class Runway {
     return this.occupiedUntil;
   }
 
-
+  public getPendingStatus(): RunwayStatus | null {
+    return this.pendingStatus;
+  }
 
   public setMode(m: RunwayMode): void {
     this.mode = m;
   }
 
   public setStatus(s: RunwayStatus): void {
+    this.pendingStatus = null;
     this.status = s;
 
     if (
       s === RunwayStatus.RUNWAY_INSPECTION ||
       s === RunwayStatus.SNOW_CLEARANCE ||
-      s === RunwayStatus.EQUIPMENT_FAILURE
+      s === RunwayStatus.EQUIPMENT_FAILURE ||
+      s === RunwayStatus.AVAILABLE
     ) {
-      this.occupiedBy = null;
-      this.occupiedUntil = null;
-    }
-
-    if (s === RunwayStatus.AVAILABLE) {
       this.occupiedBy = null;
       this.occupiedUntil = null;
     }
   }
 
+  public queueStatusChange(s: RunwayStatus): void {
+    this.pendingStatus = s;
+  }
+
+  public occupy(ac: Aircraft, occupiedUntil: Date): void {
+    this.occupiedBy = ac;
+    this.occupiedUntil = occupiedUntil;
+    this.status = RunwayStatus.OCCUPIED;
+  }
+
+  public getCurrentAction(): "Landing" | "Take-off" | "--" {
+    if (!this.occupiedBy) return "--";
+    return this.occupiedBy.getType() === FlightType.INBOUND
+      ? "Landing"
+      : "Take-off";
+  }
+
+  public getTimeRemainingSeconds(now: Date): number | null {
+    if (!this.occupiedUntil || !this.occupiedBy) return null;
+    return Math.max(
+      0,
+      Math.ceil((this.occupiedUntil.getTime() - now.getTime()) / 1000)
+    );
+  }
+
   public isAvailable(t: Date): boolean {
-    // Not available if runway is closed for any reason
-    if (this.status !== RunwayStatus.AVAILABLE && this.status !== RunwayStatus.OCCUPIED) {
+    if (
+      this.status !== RunwayStatus.AVAILABLE &&
+      this.status !== RunwayStatus.OCCUPIED
+    ) {
       return false;
     }
 
-    // If runway is occupied, check if it should become available now
     if (this.status === RunwayStatus.OCCUPIED) {
       if (this.occupiedUntil !== null && t >= this.occupiedUntil) {
-        // Release automatically when time passes
-        this.status = RunwayStatus.AVAILABLE;
         this.occupiedBy = null;
         this.occupiedUntil = null;
+
+        if (this.pendingStatus) {
+          this.status = this.pendingStatus;
+          this.pendingStatus = null;
+          return this.status === RunwayStatus.AVAILABLE;
+        }
+
+        this.status = RunwayStatus.AVAILABLE;
         return true;
       }
       return false;
     }
 
-    // AVAILABLE: ensure no current occupant
     return this.occupiedBy === null;
   }
-
 }

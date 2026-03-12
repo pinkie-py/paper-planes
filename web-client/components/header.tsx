@@ -2,6 +2,9 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
+import CompareButton from "./compare_button";
+
 import { usePathname } from "next/navigation";
 
 const DS_BLUE = "#004696";
@@ -20,13 +23,24 @@ export default function header() {
     fontWeight: 600,
     fontSize: 14,
     transition: "0.2s",
+
+
+    border: "none",            // Removes the default black outline
+    cursor: "pointer",         // Makes it feel like a link
+    fontFamily: "inherit",     // Prevents the button from using a different font
   });
 
   return (
     <header style={{ background: "#fff", borderBottom: `1px solid ${BORDER}` }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 8, background: DS_BLUE }} />
+          <Image
+            src="/logo1.png"
+            alt="Paper Planes logo"
+            width={38}
+            height={38}
+            style={{ borderRadius: 8, objectFit: "contain" }}
+          />
           <div style={{ lineHeight: 1.1 }}>
             <div style={{ fontWeight: 800, color: DS_BLUE }}>Paper Planes</div>
             <div style={{ fontSize: 12, color: "#6b7280" }}>Airport simulation</div>
@@ -37,7 +51,9 @@ export default function header() {
           <Link href="/" style={navLinkStyle("/")}>Home</Link>
           <Link href="/configure" style={navLinkStyle("/configure")}>Configure</Link>
           <Link href="/results" style={navLinkStyle("/results")}>Results</Link>
-          <Link href="/compare" style={navLinkStyle("/compare")}>Compare</Link>
+          <CompareButton style={navLinkStyle("/compare")}>
+            Compare
+          </CompareButton>
         </nav>
       </div>
     </header>

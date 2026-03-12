@@ -3,6 +3,8 @@
 import React from "react";
 import Link from "next/link";
 import Header from "@/components/header";
+import CompareButton from "@/components/compare_button";
+import LoadButton from "@/components/load_button";
 
 const DS_BLUE = "#004696";
 const TEXT = "#1f2937";
@@ -17,14 +19,14 @@ export default function HomePage() {
     background: '#fff',
     border: `1px solid ${BORDER}`,
     color: TEXT,
-    borderRadius: '4px'
-  };
-
-  const primaryButtonStyle: React.CSSProperties = {
-    ...buttonStyle,
-    background: DS_BLUE,
-    color: '#fff',
-    border: 'none',
+    borderRadius: '4px',
+    textAlign: 'center',
+    textDecoration: 'none',
+    display: 'inline-block',
+    boxSizing: 'border-box',
+    fontSize: '16px',
+    fontFamily: 'sans-serif',
+    transition: 'background 0.2s ease'
   };
 
   return (
@@ -33,28 +35,34 @@ export default function HomePage() {
 
       <div style={{ textAlign: 'center', padding: '20px' }}>
         <header style={{ marginTop: '20px' }}>
-          <h1 style={{ color: DS_BLUE, margin: '0 0 10px' }}>Airport simulation</h1>
-          <h2 style={{ fontWeight: '400', fontSize: '18px' }}>Home page</h2>
+          <h1 style={{ color: DS_BLUE, margin: '0 0 10px', fontSize: '32px' }}>
+            Airport simulation
+          </h1>
+          <h2 style={{ fontWeight: '400', fontSize: '18px', color: '#4b5563' }}>
+            Home page
+          </h2>
         </header>
 
-        <main style={{ marginTop: '40px', display: 'flex', flexDirection: 'column', gap: '15px', alignItems: 'center' }}>
-          <Link href="/configure">
-            <button style={buttonStyle}>
-              Configure Scenario
-            </button>
+        <main 
+          style={{ 
+            marginTop: '40px', 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '15px', 
+            alignItems: 'center' 
+          }}
+        >
+          {/* Navigation Buttons */}
+          <Link href="/configure" style={buttonStyle}>
+            Configure Scenario
           </Link>
+          <LoadButton style={buttonStyle}>
+            Load Scenario
+          </LoadButton>
 
-          <Link href="/results">
-            <button style={buttonStyle}>
-              Load Scenario
-            </button>
-          </Link>
-
-          <Link href="/compare">
-            <button style={buttonStyle}>
-              Compare Scenario
-            </button>
-          </Link>
+          <CompareButton style={buttonStyle}>
+            Compare Scenarios
+          </CompareButton>
         </main>
       </div>
     </div>

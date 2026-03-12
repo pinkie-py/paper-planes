@@ -1,15 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
+import Header from "@/components/header";
 import Link from "next/link";
-import Header from "@/components/header"; 
-
-
-
-type MetricRow = {
-  label: string;
-  values: number[];
-};
 
 const DS_BLUE = "#004696";
 const TEXT = "#1f2937";
@@ -17,151 +11,211 @@ const BORDER = "#d0d7de";
 const LIGHT_BG = "#f6f8fb";
 const PANEL_BG = "#eef2f6";
 
-// Math Utilities
-const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
-
-const stdDev = (xs: number[]) => {
-  if (xs.length <= 1) return 0;
-  const m = mean(xs);
-  const variance = xs.reduce((sum, x) => sum + (x - m) * (x - m), 0) / (xs.length - 1);
-  return Math.sqrt(variance);
-};
-
-const round1 = (n: number) => Math.round(n * 10) / 10;
-
 export default function ComparePage() {
-  // Scenario Context (To be pulled from state/backend later)
-  const scenario = {
-    name: "Comparison View",
-    seed: 10001,
-    runCount: 3,
+  const searchParams = useSearchParams();
+  const idA = searchParams.get("idA");
+  const idB = searchParams.get("idB");
+
+  const [dataA, setDataA] = useState<any>(null);
+  const [dataB, setDataB] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchComparisonData() {
+      try {
+        setLoading(true);
+        const res = await fetch('http://localhost:3000/history');
+        const json = await res.json();
+        const history = json.data || [];
+
+        const scenarioA = history.find((item: any) => String(item.id) === String(idA));
+        const scenarioB = history.find((item: any) => String(item.id) === String(idB));
+
+        setDataA(scenarioA);
+        setDataB(scenarioB);
+      } catch (err) {
+        console.error("Failed to fetch comparison data", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (idA && idB) {
+      fetchComparisonData();
+    } else {
+      setLoading(false); 
+    }
+  }, [idA, idB]);
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", background: LIGHT_BG }}>
+        <Header />
+        <div style={{ padding: 100, textAlign: 'center', fontSize: '18px' }}>Loading Comparison...</div>
+      </div>
+    );
+  }
+
+  if (!idA || !idB) {
+    return (
+      <div style={{ minHeight: "100vh", background: LIGHT_BG, color: TEXT, fontFamily: "sans-serif" }}>
+        <Header />
+        <main style={{ maxWidth: 800, margin: "80px auto", padding: "40px", textAlign: "center", background: "#fff", border: `1px solid ${BORDER}`, borderRadius: "8px" }}>
+          <h2 style={{ color: DS_BLUE, marginBottom: "16px" }}>No Scenarios Selected</h2>
+          <p style={{ marginBottom: "32px", color: "#666" }}>You need to select two scenarios from your history to compare them.</p>
+          <Link href="/simulation" style={{ padding: "12px 24px", background: DS_BLUE, color: "#fff", textDecoration: "none", borderRadius: "6px", fontWeight: "bold" }}>
+            Run a New Simulation
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  if (!dataA || !dataB) {
+    return (
+      <div style={{ minHeight: "100vh", background: LIGHT_BG, color: TEXT, fontFamily: "sans-serif" }}>
+        <Header />
+        <main style={{ maxWidth: 800, margin: "80px auto", padding: "40px", textAlign: "center", background: "#fff", border: `1px solid ${BORDER}`, borderRadius: "8px" }}>
+          <h2 style={{ color: DS_BLUE, marginBottom: "16px" }}>Simulation Data Not Found</h2>
+          <p style={{ marginBottom: "32px", color: "#666" }}>The runs you are trying to compare don't exist in the database (they may have been cleared).</p>
+          <Link href="/simulation" style={{ padding: "12px 24px", background: DS_BLUE, color: "#fff", textDecoration: "none", borderRadius: "6px", fontWeight: "bold" }}>
+            Start a Clean Run
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
+  // UPDATED Helper: Fetches the row from the ResultsResponse data block and averages it
+  const getVal = (data: any, label: string) => {
+    const row = data?.aggregatedResults?.rows?.find((r: any) => r.label === label);
+    if (!row || !row.values || row.values.length === 0) return 0;
+    return Number((row.values.reduce((a: number, b: number) => a + b, 0) / row.values.length).toFixed(1));
   };
-
-  // Mock Data matching your requirements
-  const rows: MetricRow[] = [
-    { label: "Fuel Emergency Events", values: [6, 9, 12] },
-    { label: "Aircraft Diversions", values: [1, 1, 2] },
-    { label: "Cancellations", values: [13, 13, 13] },
-    { label: "Avg Landing Queue size", values: [13, 16, 10] },
-    { label: "Avg Take-Off Queue size", values: [13, 15, 17] },
-    { label: "Avg Waiting Time (arrival) / mins", values: [14, 20, 29] },
-    { label: "Avg Waiting Time (departure) / mins", values: [21, 11, 16] },
-    { label: "Avg Delay / mins", values: [10, 10, 25] },
-    { label: "Aircraft Processed", values: [345, 355, 350] },
-  ];
-
-  const getRowValues = (label: string) => rows.find((r) => r.label === label)?.values ?? [];
-
-  const aggRisk = [
-    { label: "Mean Fuel Emergency Events", value: round1(mean(getRowValues("Fuel Emergency Events"))) },
-    { label: "Mean Aircraft Diversions", value: round1(mean(getRowValues("Aircraft Diversions"))) },
-    { label: "Mean Cancellations", value: round1(mean(getRowValues("Cancellations"))) },
-  ];
-
-  const aggPerf = [
-    { label: "Avg landing queue size", value: round1(mean(getRowValues("Avg Landing Queue size"))) },
-    { label: "Avg take-off queue size", value: round1(mean(getRowValues("Avg Take-Off Queue size"))) },
-    { label: "Avg waiting time (arrival) / mins", value: round1(mean(getRowValues("Avg Waiting Time (arrival) / mins"))) },
-    { label: "Avg waiting time (departure) / mins", value: round1(mean(getRowValues("Avg Waiting Time (departure) / mins"))) },
-    { label: "Avg delay / mins", value: round1(mean(getRowValues("Avg Delay / mins"))) },
-    { label: "Mean aircraft processed", value: round1(mean(getRowValues("Aircraft Processed"))) },
-  ];
-
-  const navLinkStyle: React.CSSProperties = {
-    padding: "10px 14px",
-    textDecoration: "none",
-    color: TEXT,
-    borderRadius: 6,
-    fontWeight: 600,
-    fontSize: 14,
-  };
+  const getConfig = (data: any) => data?.configurationUsed ?? {};
 
   return (
     <div style={{ minHeight: "100vh", background: LIGHT_BG, color: TEXT, fontFamily: "sans-serif" }}>
       <Header />
 
-      <main style={{ maxWidth: 1100, margin: "0 auto", padding: 20 }}>
-        <h1 style={{ margin: "10px 0 20px", fontSize: 28, fontWeight: 800, color: DS_BLUE }}>
-          Compare Scenarios <span style={{ fontWeight: 400, color: "#6b7280", fontSize: 18 }}>(Simulation ID: {scenario.seed})</span>
+      <main style={{ maxWidth: 1100, margin: "0 auto", padding: "20px" }}>
+        <h1 style={{ margin: "10px 0 30px", fontSize: 28, fontWeight: 800, color: DS_BLUE, textAlign: 'center' }}>
+          Compare Scenarios
         </h1>
 
-        {/* Top Summary Section */}
-        <section style={{ border: `1px solid ${BORDER}`, background: PANEL_BG, padding: 16, borderRadius: 8 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.2fr", gap: 16 }}>
-            
-            {/* Risk Box */}
-            <div style={{ background: "#fff", border: `1px solid ${BORDER}`, padding: 14, borderRadius: 4 }}>
-              <h3 style={{ textAlign: "center", margin: "0 0 12px", fontSize: 16, fontWeight: 800 }}>Aggregated Risk</h3>
-              <div style={{ display: "grid", gap: 10 }}>
-                {aggRisk.map((item) => (
-                  <div key={item.label} style={{ display: "grid", gridTemplateColumns: "1fr 70px", alignItems: "center", gap: 10 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>{item.label}</div>
-                    <div style={{ border: `2px solid ${TEXT}`, textAlign: "center", padding: "6px 0", fontWeight: 800 }}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+        <div style={{ display: "flex", gap: "20px", marginBottom: 40 }}>
+          <ScenarioConfig label="A" data={dataA} config={getConfig(dataA)} />
+          <ScenarioConfig label="B" data={dataB} config={getConfig(dataB)} />
+        </div>
 
-            {/* Performance Box */}
-            <div style={{ background: "#fff", border: `1px solid ${BORDER}`, padding: 14, borderRadius: 4 }}>
-              <h3 style={{ textAlign: "center", margin: "0 0 12px", fontSize: 16, fontWeight: 800 }}>Aggregated Performance</h3>
-              <div style={{ display: "grid", gap: 10 }}>
-                {aggPerf.map((item) => (
-                  <div key={item.label} style={{ display: "grid", gridTemplateColumns: "auto 1fr 70px", alignItems: "center", gap: 10, fontSize: 14 }}>
-                    <div>{item.label}</div>
-                    <div style={{ borderBottom: "2px dotted #cbd5e1", height: 0 }} />
-                    <div style={{ border: `1px solid ${BORDER}`, textAlign: "center", padding: "5px 0", background: LIGHT_BG }}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+        <section style={{ border: `1px solid ${BORDER}`, background: PANEL_BG, padding: 24, marginBottom: 40 }}>
+          <h2 style={{ textAlign: "center", marginTop: 0, marginBottom: 26, fontSize: 18, fontWeight: 800 }}>
+            Key Risk Metrics Comparison
+          </h2>
+          <div style={{ maxWidth: 700, margin: '0 auto' }}>
+            <MetricBar label="Diversions" valA={getVal(dataA, 'Aircraft Diversions')} valB={getVal(dataB, 'Aircraft Diversions')} />
+            <MetricBar label="Cancellations" valA={getVal(dataA, 'Cancellations')} valB={getVal(dataB, 'Cancellations')} />
+            <MetricBar label="Fuel Emergencies" valA={getVal(dataA, 'Fuel Emergency Events')} valB={getVal(dataB, 'Fuel Emergency Events')} />
           </div>
         </section>
 
-        {/* Detailed Comparison Table */}
-        <h2 style={{ textAlign: "center", marginTop: 30, marginBottom: 15, fontSize: 20, fontWeight: 800 }}>Per-Run Comparison</h2>
-        <div style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 8, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: `2px solid ${BORDER}` }}>
-                <th style={{ padding: "14px", textAlign: "left", borderRight: `1px solid ${BORDER}` }}>Metric</th>
-                {Array.from({ length: scenario.runCount }, (_, i) => (
-                  <th key={i} style={{ padding: "14px", borderRight: `1px solid ${BORDER}` }}>Run {i + 1}</th>
-                ))}
-                <th style={{ padding: "14px", background: "#f1f5f9", borderRight: `1px solid ${BORDER}` }}>Mean</th>
-                <th style={{ padding: "14px", background: "#f1f5f9" }}>Std Dev</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr key={row.label} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <td style={{ padding: "12px", fontWeight: 600, fontSize: 14, borderRight: `1px solid ${BORDER}` }}>{row.label}</td>
-                  {row.values.map((v, i) => (
-                    <td key={i} style={{ padding: "12px", textAlign: "center", borderRight: `1px solid ${BORDER}` }}>{v}</td>
-                  ))}
-                  <td style={{ padding: "12px", textAlign: "center", fontWeight: 800, background: "#f8fafc", borderRight: `1px solid ${BORDER}` }}>
-                    {round1(mean(row.values))}
-                  </td>
-                  <td style={{ padding: "12px", textAlign: "center", color: "#64748b", fontSize: 13 }}>
-                    {round1(stdDev(row.values))}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer Actions */}
-        <div style={{ marginTop: 30, display: "flex", justifyContent: "center", gap: 15 }}>
-          <Link href="/results" style={{ padding: "12px 24px", background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 6, textDecoration: "none", color: TEXT, fontWeight: 700 }}>
-            Back to Results
-          </Link>
-          <button style={{ padding: "12px 24px", background: DS_BLUE, color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 700 }}>
-            Export Comparison (PDF)
-          </button>
-        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", background: "#fff", border: `1px solid ${BORDER}` }}>
+          <thead>
+            <tr style={{ background: "#f3f4f6" }}>
+              <th style={tableHeaderStyle}>Category</th>
+              <th style={{ ...tableHeaderStyle, textAlign: 'left' }}>Metric</th>
+              <th style={tableHeaderStyle}>A</th>
+              <th style={tableHeaderStyle}>B</th>
+              <th style={tableHeaderStyle}>Δ</th>
+            </tr>
+          </thead>
+          <tbody>
+             <TableRow label="Aircraft Diversions" valA={getVal(dataA, 'Aircraft Diversions')} valB={getVal(dataB, 'Aircraft Diversions')} category="Risk" rowSpan={3} isLowerBetter />
+             <TableRow label="Cancellations" valA={getVal(dataA, 'Cancellations')} valB={getVal(dataB, 'Cancellations')} isLowerBetter />
+             <TableRow label="Fuel Emergencies" valA={getVal(dataA, 'Fuel Emergency Events')} valB={getVal(dataB, 'Fuel Emergency Events')} isLowerBetter />
+             
+             <TableRow label="Avg Landing Queue" valA={getVal(dataA, 'Avg Landing Queue size')} valB={getVal(dataB, 'Avg Landing Queue size')} category="Performance" rowSpan={3} isLowerBetter />
+             <TableRow label="Avg Take-Off Queue" valA={getVal(dataA, 'Avg Take-Off Queue size')} valB={getVal(dataB, 'Avg Take-Off Queue size')} isLowerBetter />
+             <TableRow label="Avg Delay /mins" valA={getVal(dataA, 'Avg Delay / mins')} valB={getVal(dataB, 'Avg Delay / mins')} isLowerBetter />
+          </tbody>
+        </table>
       </main>
     </div>
   );
 }
+
+// Sub-components
+function ScenarioConfig({ label, data, config }: any) {
+  return (
+    <div style={{ background: "#fff", border: `1px solid ${BORDER}`, padding: 12, flex: 1 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <span style={{ fontSize: 24, fontWeight: 900, color: DS_BLUE }}>{label}</span>
+        <span style={{ fontWeight: 700 }}>{data.name || "Untitled Sim"}</span>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 12px", fontSize: 13 }}>
+        <div>Runways: <b>{config.runways?.length || 0}</b></div>
+        <div>Inbound: <b>{config.inboundFlowRate}/hr</b></div>
+        <div>Outbound: <b>{config.outboundFlowRate}/hr</b></div>
+        <div>Runs: <b>{config.runCount}</b></div>
+      </div>
+    </div>
+  );
+}
+
+function MetricBar({ label, valA, valB }: any) {
+  const dynamicMax = Math.max(valA, valB, 10);
+  const pctA = Math.max((valA / dynamicMax) * 100, 0);
+  const pctB = Math.max((valB / dynamicMax) * 100, 0);
+
+  const renderBar = (val: number, pct: number, color: string) => (
+    <div style={{ 
+      width: `${pct}%`, 
+      minWidth: val === 0 ? "24px" : "32px",
+      background: color, 
+      height: 22, 
+      color: '#fff', 
+      fontSize: 12, 
+      fontWeight: 700,
+      display: 'flex', 
+      alignItems: 'center', 
+      paddingLeft: 8,
+      borderRadius: "0 4px 4px 0",
+      transition: "width 0.3s ease"
+    }}>
+      {val}
+    </div>
+  );
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', alignItems: 'center', marginBottom: 18 }}>
+      <div style={{ fontSize: 13, fontWeight: 600 }}>{label}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, borderLeft: `2px solid ${TEXT}` }}>
+        {renderBar(valA, pctA, '#9aa4b2')}
+        {renderBar(valB, pctB, DS_BLUE)}
+      </div>
+    </div>
+  );
+}
+
+function TableRow({ label, valA, valB, category, rowSpan, isLowerBetter }: any) {
+  const delta = Number((valB - valA).toFixed(1));
+  const isGood = isLowerBetter ? delta < 0 : delta > 0;
+  const deltaColor = delta === 0 ? TEXT : isGood ? "#059669" : "#dc2626";
+
+  return (
+    <tr>
+      {category && <td rowSpan={rowSpan} style={{ padding: 10, border: `1px solid ${BORDER}`, fontWeight: 800, textAlign: 'center', background: PANEL_BG }}>{category}</td>}
+      <td style={{ padding: 10, border: `1px solid ${BORDER}` }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span>{label}</span>
+          <div style={{ flex: 1, borderBottom: '1px dotted #ccc' }} />
+        </div>
+      </td>
+      <td style={{ padding: 10, border: `1px solid ${BORDER}`, textAlign: 'center' }}>{valA}</td>
+      <td style={{ padding: 10, border: `1px solid ${BORDER}`, textAlign: 'center' }}>{valB}</td>
+      <td style={{ padding: 10, border: `1px solid ${BORDER}`, textAlign: 'center', fontWeight: 800, color: deltaColor }}>{delta > 0 ? `+${delta}` : delta}</td>
+    </tr>
+  );
+}
+
+const tableHeaderStyle: React.CSSProperties = { padding: '12px', border: `1px solid ${BORDER}`, fontWeight: 800 };
