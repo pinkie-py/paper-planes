@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import Header from "@/components/header";
 import CompareButton from "@/components/compare_button";
+import LoadButton from "@/components/load_button";
 
 const DS_BLUE = "#004696";
 const TEXT = "#1f2937";
@@ -55,10 +56,9 @@ export default function HomePage() {
           <Link href="/configure" style={buttonStyle}>
             Configure Scenario
           </Link>
-
-          <Link href="/results" style={buttonStyle}>
+          <LoadButton style={buttonStyle}>
             Load Scenario
-          </Link>
+          </LoadButton>
 
           <CompareButton style={buttonStyle}>
             Compare Scenarios
