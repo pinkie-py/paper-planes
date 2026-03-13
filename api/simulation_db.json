@@ -166,7 +166,7 @@
   {
     "id": "6220d187-0f1a-4e75-b6ed-0ef9a0d9b8df",
     "name": "Sim: 3 Run(s) (564 In / 600 Out)",
-    "timestamp": "2026-03-13T11:55:40.062Z",
+    "timestamp": "2026-03-13T12:27:47.267Z",
     "configurationUsed": {
       "inboundFlowRate": 564,
       "outboundFlowRate": 600,
@@ -251,6 +251,71 @@
         "averageDelayMins": 19.512,
         "holdingQueueSizeRemaining": 23,
         "takeoffQueueSizeRemaining": 31
+      }
+    ]
+  },
+  {
+    "id": "5ae75e65-d6fc-47d5-927e-48165c900cb5",
+    "name": "Sim: 1 Run(s) (15 In / 15 Out)",
+    "timestamp": "2026-03-13T12:29:46.537Z",
+    "configurationUsed": {
+      "inboundFlowRate": 15,
+      "outboundFlowRate": 15,
+      "durationMinutes": 60,
+      "runCount": 1,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 03",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "aggregatedResults": {
+      "totalProcessed": {
+        "mean": 29,
+        "stdDev": 0
+      },
+      "diverted": {
+        "mean": 0,
+        "stdDev": 0
+      },
+      "cancelled": {
+        "mean": 0,
+        "stdDev": 0
+      },
+      "averageDelayMins": {
+        "mean": 0.03,
+        "stdDev": 0
+      },
+      "holdingQueueSizeRemaining": {
+        "mean": 0,
+        "stdDev": 0
+      },
+      "takeoffQueueSizeRemaining": {
+        "mean": 0,
+        "stdDev": 0
+      }
+    },
+    "perRunResults": [
+      {
+        "totalProcessed": 29,
+        "diverted": 0,
+        "cancelled": 0,
+        "averageDelayMins": 0.034482758620689655,
+        "holdingQueueSizeRemaining": 0,
+        "takeoffQueueSizeRemaining": 0
       }
     ]
   }
