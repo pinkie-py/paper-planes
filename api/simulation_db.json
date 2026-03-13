@@ -162,5 +162,96 @@
         "takeoffQueueSizeRemaining": 31
       }
     ]
+  },
+  {
+    "id": "6220d187-0f1a-4e75-b6ed-0ef9a0d9b8df",
+    "name": "Sim: 3 Run(s) (564 In / 600 Out)",
+    "timestamp": "2026-03-13T11:55:40.062Z",
+    "configurationUsed": {
+      "inboundFlowRate": 564,
+      "outboundFlowRate": 600,
+      "durationMinutes": 300,
+      "runCount": 3,
+      "seed": null,
+      "runways": [
+        {
+          "id": "Runway 01",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 02",
+          "mode": "LANDING",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 03",
+          "mode": "LANDING",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 04",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        },
+        {
+          "id": "Runway 05",
+          "mode": "MIXED",
+          "status": "AVAILABLE"
+        }
+      ]
+    },
+    "aggregatedResults": {
+      "totalProcessed": {
+        "mean": 500,
+        "stdDev": 0
+      },
+      "diverted": {
+        "mean": 12.33,
+        "stdDev": 2.08
+      },
+      "cancelled": {
+        "mean": 32,
+        "stdDev": 1
+      },
+      "averageDelayMins": {
+        "mean": 19.71,
+        "stdDev": 0.21
+      },
+      "holdingQueueSizeRemaining": {
+        "mean": 25.33,
+        "stdDev": 2.52
+      },
+      "takeoffQueueSizeRemaining": {
+        "mean": 30.33,
+        "stdDev": 0.58
+      }
+    },
+    "perRunResults": [
+      {
+        "totalProcessed": 500,
+        "diverted": 14,
+        "cancelled": 31,
+        "averageDelayMins": 19.93,
+        "holdingQueueSizeRemaining": 25,
+        "takeoffQueueSizeRemaining": 30
+      },
+      {
+        "totalProcessed": 500,
+        "diverted": 10,
+        "cancelled": 32,
+        "averageDelayMins": 19.678,
+        "holdingQueueSizeRemaining": 28,
+        "takeoffQueueSizeRemaining": 30
+      },
+      {
+        "totalProcessed": 500,
+        "diverted": 13,
+        "cancelled": 33,
+        "averageDelayMins": 19.512,
+        "holdingQueueSizeRemaining": 23,
+        "takeoffQueueSizeRemaining": 31
+      }
+    ]
   }
 ]
