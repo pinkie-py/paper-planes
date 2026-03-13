@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/header";
 
 const DS_BLUE = "#004696";
 const BORDER = "#d0d7de";
+const TEXT_DARK = "#1a1f36";
 
 const max_runways = 25;
 const max_inbound_flow_per_hour = 250;
@@ -26,7 +27,18 @@ const Configure: React.FC = () => {
     durationHours: "1",
   });
 
-  const [closedRunways, setClosedRunways] = useState<number[]>([]);
+  const [runwayConfigs, setRunwayConfigs] = useState<Record<number, any>>({});
+
+  useEffect(() => {
+    const count = Math.min(max_runways, Math.max(1, parseInt(formData.runways) || 1));
+    setRunwayConfigs((prev) => {
+      const next = { ...prev };
+      for (let i = 0; i < count; i++) {
+        if (!next[i]) next[i] = { mode: "MIXED", status: "AVAILABLE" };
+      }
+      return next;
+    });
+  }, [formData.runways]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -59,28 +71,11 @@ const Configure: React.FC = () => {
 
     setErrorField(null);
     setFormData((prev) => ({ ...prev, [name]: value }));
-
-    if (name === "runways") {
-      setClosedRunways([]);
-    }
   };
-
-  const toggleRunwayStatus = (index: number) => {
-    setClosedRunways((prev) =>
-      prev.includes(index)
-        ? prev.filter((i) => i !== index)
-        : [...prev, index]
-    );
-  };
-
-  const runwayCount = Math.min(max_runways, Math.max(1, parseInt(formData.runways) || 1));
-  const displayCount = Math.min(runwayCount, 10);
 
   const handleRunSimulation = () => {
-    const hours = Math.min(
-      max_duration_hours,
-      Math.max(1, Number(formData.durationHours) || 1)
-    );
+    const runwayCount = Math.min(max_runways, Math.max(1, parseInt(formData.runways) || 1));
+    const hours = Math.min(max_duration_hours, Math.max(1, Number(formData.durationHours) || 1));
 
     const payload = {
       inboundFlowRate: Number(formData.inboundFlow) || 0,
@@ -90,17 +85,14 @@ const Configure: React.FC = () => {
       seed: formData.seed ? Number(formData.seed) : null,
       runways: Array.from({ length: runwayCount }).map((_, i) => ({
         id: `Runway ${String(i + 1).padStart(2, "0")}`,
-        mode: "MIXED",
-        status: closedRunways.includes(i)
-          ? "RUNWAY_INSPECTION"
-          : "AVAILABLE",
+        mode: runwayConfigs[i]?.mode || "MIXED",
+        status: runwayConfigs[i]?.status || "AVAILABLE",
       })),
     };
 
     sessionStorage.setItem("pp:simConfig", JSON.stringify(payload));
     sessionStorage.removeItem("pp:lastResults");
     sessionStorage.removeItem("latestSimulation");
-
     router.push("/simulation");
   };
 
@@ -108,144 +100,130 @@ const Configure: React.FC = () => {
     <div style={{ minHeight: "100vh", background: "#f6f8fb", fontFamily: "sans-serif" }}>
       <Header />
 
-      <main style={{ maxWidth: "1000px", margin: "0 auto", padding: "40px 20px" }}>
-        <header style={{ marginBottom: "30px" }}>
-          <h1 style={{ fontSize: "28px", fontWeight: "800", color: DS_BLUE, margin: 0 }}>
-            Configure Scenario
-          </h1>
-          <p style={{ color: "#6b7280", marginTop: "8px" }}>
-            Adjust the variables below to simulate airport traffic and runway performance.
-          </p>
-        </header>
-
-        <div style={{ marginBottom: "30px" }}>
-          <button
-            onClick={handleRunSimulation}
-            style={{
-              padding: "12px 40px",
-              background: DS_BLUE,
-              color: "white",
-              border: "none",
-              borderRadius: "8px",
-              fontWeight: "700",
-              cursor: "pointer",
-            }}
-          >
+      <main style={{ maxWidth: "1200px", margin: "0 auto", padding: "40px 20px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "30px" }}>
+          <header>
+            <h1 style={{ fontSize: "28px", fontWeight: "800", color: DS_BLUE, margin: 0 }}>
+              Configure Scenario
+            </h1>
+            <p style={{ color: "#6b7280", marginTop: "8px" }}>
+              Adjust variables to simulate airport traffic and performance.
+            </p>
+          </header>
+          <button onClick={handleRunSimulation} style={applyButtonStyle}>
             Go to Live Simulation
           </button>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "40px", alignItems: "start" }}>
-          <section style={{ background: "white", padding: "24px", border: `1px solid ${BORDER}`, borderRadius: "8px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: "800", marginBottom: "20px", color: DS_BLUE, borderBottom: `1px solid ${BORDER}`, paddingBottom: "10px" }}>
-              Traffic & Run Settings
-            </h2>
-
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "30px", marginBottom: "30px" }}>
+          <section style={cardStyle}>
+            <h2 style={sectionHeaderStyle}>Traffic & Run Settings</h2>
             <div style={{ display: "grid", gap: "15px" }}>
-              <InputBlock
-                label="Inbound flow per hour"
-                name="inboundFlow"
-                value={formData.inboundFlow}
-                onChange={handleChange}
-                min="0"
-                max={max_inbound_flow_per_hour}
-              />
+              <InputBlock label="Inbound flow per hour" name="inboundFlow" value={formData.inboundFlow} onChange={handleChange} min="0" max={max_inbound_flow_per_hour} />
               {errorField === "inboundFlow_max" && <ErrorMessage limit={max_inbound_flow_per_hour} />}
-              {errorField === "inboundFlow_min" && <p style={{ color: "#dc2626", fontSize: "12px", marginTop: "-10px", marginBottom: "5px", fontWeight: "600" }}>Cannot be less than 0.</p>}
+              {errorField === "inboundFlow_min" && <MinErrorMessage msg="Cannot be less than 0." />}
 
-              <InputBlock
-                label="Outbound flow per hour"
-                name="outboundFlow"
-                value={formData.outboundFlow}
-                onChange={handleChange}
-                min="0"
-                max={max_outbound_flow_per_hour}
-              />
+              <InputBlock label="Outbound flow per hour" name="outboundFlow" value={formData.outboundFlow} onChange={handleChange} min="0" max={max_outbound_flow_per_hour} />
               {errorField === "outboundFlow_max" && <ErrorMessage limit={max_outbound_flow_per_hour} />}
-              {errorField === "outboundFlow_min" && <p style={{ color: "#dc2626", fontSize: "12px", marginTop: "-10px", marginBottom: "5px", fontWeight: "600" }}>Cannot be less than 0.</p>}
+              {errorField === "outboundFlow_min" && <MinErrorMessage msg="Cannot be less than 0." />}
 
-              <InputBlock
-                label="No. of runs"
-                name="numRuns"
-                value={formData.numRuns}
-                onChange={handleChange}
-                min="1"
-                max={max_runs}
-              />
+              <InputBlock label="No. of runways" name="runways" value={formData.runways} onChange={handleChange} min="1" max={max_runways} />
+              {errorField === "runways_max" && <ErrorMessage limit={max_runways} />}
+              {errorField === "runways_min" && <MinErrorMessage msg="Minimum 1 runway required." />}
+
+              <InputBlock label="No. of runs" name="numRuns" value={formData.numRuns} onChange={handleChange} min="1" max={max_runs} />
               {errorField === "numRuns_max" && <ErrorMessage limit={max_runs} />}
-              {errorField === "numRuns_min" && <p style={{ color: "#dc2626", fontSize: "12px", marginTop: "-10px", marginBottom: "5px", fontWeight: "600" }}>Minimum 1 run required.</p>}
+              {errorField === "numRuns_min" && <MinErrorMessage msg="Minimum 1 run required." />}
 
-              <InputBlock
-                label={`Simulation duration (Max ${max_duration_hours}h)`}
-                name="durationHours"
-                value={formData.durationHours}
-                onChange={handleChange}
-                min="1"
-                max={max_duration_hours}
-              />
+              <InputBlock label={`Simulation duration (Max ${max_duration_hours}h)`} name="durationHours" value={formData.durationHours} onChange={handleChange} min="1" max={max_duration_hours} />
               {errorField === "durationHours_max" && <ErrorMessage limit={max_duration_hours} />}
-              {errorField === "durationHours_min" && <p style={{ color: "#dc2626", fontSize: "12px", marginTop: "-10px", marginBottom: "5px", fontWeight: "600" }}>Duration must be at least 1 hour.</p>}
+              {errorField === "durationHours_min" && <MinErrorMessage msg="Duration must be at least 1 hour." />}
 
-              <InputBlock
-                label="Seed"
-                name="seed"
-                value={formData.seed}
-                onChange={handleChange}
-                placeholder="Optional"
-                type="text"
-              />
+              <InputBlock label="Seed" name="seed" value={formData.seed} onChange={handleChange} placeholder="Optional" type="text" />
             </div>
           </section>
 
-          <section style={{ background: "white", padding: "24px", border: `1px solid ${BORDER}`, borderRadius: "8px" }}>
-            <h2 style={{ fontSize: "18px", fontWeight: "800", marginBottom: "20px", color: DS_BLUE, borderBottom: `1px solid ${BORDER}`, paddingBottom: "10px" }}>
-              Runway Settings
-            </h2>
+          <section style={{ ...cardStyle, display: "flex", alignItems: "center", justifyContent: "center", borderStyle: "dashed" }}>
+            <p style={{ color: "#9ca3af", fontWeight: "600" }}>New Section Content Placeholder</p>
 
-            <InputBlock
-              label="No. of runways"
-              name="runways"
-              value={formData.runways}
-              onChange={handleChange}
-              min="1"
-              max={max_runways}
-            />
-            {errorField === "runways_max" && <ErrorMessage limit={max_runways} />}
-            {errorField === "runways_min" && <p style={{ color: "#dc2626", fontSize: "12px", marginTop: "-10px", marginBottom: "5px", fontWeight: "600" }}>Minimum 1 runway required.</p>}
 
-            {displayCount > 0 && (
-              <div style={{ marginTop: "25px", borderTop: `1px solid ${BORDER}`, paddingTop: "15px" }}>
-                <h3 style={{ fontSize: "14px", color: "#4b5563", marginBottom: "10px" }}>Active Runways:</h3>
-                <div style={{ display: "grid", gap: "8px" }}>
-                  {Array.from({ length: displayCount }).map((_, i) => {
-                    const isClosed = closedRunways.includes(i);
-                    return (
-                      <div key={i} style={{ padding: "10px", background: "#f9fafb", border: `1px solid ${BORDER}`, borderRadius: "4px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "14px" }}>
-                        <span style={{ fontWeight: "700", color: DS_BLUE }}>
-                          Runway {String(i + 1).padStart(2, "0")}
-                        </span>
-                        <button
-                          onClick={() => toggleRunwayStatus(i)}
-                          style={{ padding: "4px 10px", borderRadius: "4px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600", color: "white", background: isClosed ? "#dc2626" : "#10b981", minWidth: "85px" }}
-                        >
-                          {isClosed ? "Closed" : "Available"}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+
+            
           </section>
         </div>
+
+        <section style={{ ...cardStyle, padding: 0, overflow: "hidden" }}>
+          <div style={{ padding: "15px 20px", borderBottom: `1px solid ${BORDER}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: "900", color: TEXT_DARK, margin: 0 }}>
+              Runway Configuration
+            </h2>
+          </div>
+          
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "#f8f9fa", textAlign: "left" }}>
+                  <th style={thStyle}>Runway</th>
+                  <th style={thStyle}>Mode</th>
+                  <th style={thStyle}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: Math.min(max_runways, Math.max(0, parseInt(formData.runways) || 0)) }).map((_, i) => (
+                  <tr key={i} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <td style={{ ...tdStyle, fontWeight: "900", color: TEXT_DARK }}>
+                      Runway {String(i + 1).padStart(2, "0")}
+                    </td>
+                    <td style={tdStyle}>
+                      <select 
+                        style={selectStyle} 
+                        value={runwayConfigs[i]?.mode} 
+                        onChange={(e) => setRunwayConfigs({...runwayConfigs, [i]: {...runwayConfigs[i], mode: e.target.value}})}
+                      >
+                        <option value="MIXED">Mixed mode</option>
+                        <option value="TAKEOFF">Take-off only</option>
+                        <option value="LANDING">Landing only</option>
+                      </select>
+                    </td>
+                    <td style={tdStyle}>
+                      <select 
+                        style={selectStyle} 
+                        value={runwayConfigs[i]?.status} 
+                        onChange={(e) => setRunwayConfigs({...runwayConfigs, [i]: {...runwayConfigs[i], status: e.target.value}})}
+                      >
+                        <option value="AVAILABLE">Available</option>
+                        <option value="RUNWAY_INSPECTION">Inspection</option>
+                        <option value="SNOW_CLEARANCE">Snow clearance</option>
+                        <option value="EQUIPMENT_FAILURE">Failure</option>
+                      </select>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       </main>
     </div>
   );
 };
 
+const cardStyle: React.CSSProperties = { background: "white", padding: "24px", border: `1px solid ${BORDER}`, borderRadius: "8px" };
+const sectionHeaderStyle: React.CSSProperties = { fontSize: "18px", fontWeight: "800", marginBottom: "20px", color: DS_BLUE, borderBottom: `1px solid ${BORDER}`, paddingBottom: "10px" };
+const thStyle: React.CSSProperties = { padding: "12px 20px", fontSize: "14px", color: TEXT_DARK, fontWeight: "800", borderBottom: `1px solid ${BORDER}` };
+const tdStyle: React.CSSProperties = { padding: "15px 20px", fontSize: "14px" };
+const selectStyle: React.CSSProperties = { padding: "8px 12px", borderRadius: "6px", border: `1px solid ${BORDER}`, fontSize: "13px", width: "180px", background: "white" };
+const applyButtonStyle: React.CSSProperties = { padding: "12px 30px", background: DS_BLUE, color: "white", border: "none", borderRadius: "8px", fontWeight: "700", cursor: "pointer" };
+
 const ErrorMessage = ({ limit }: { limit: number }) => (
   <p style={{ color: "#dc2626", fontSize: "12px", marginTop: "-10px", marginBottom: "5px", fontWeight: "600" }}>
     Maximum {limit} allowed.
+  </p>
+);
+
+const MinErrorMessage = ({ msg }: { msg: string }) => (
+  <p style={{ color: "#dc2626", fontSize: "12px", marginTop: "-10px", marginBottom: "5px", fontWeight: "600" }}>
+    {msg}
   </p>
 );
 
@@ -255,19 +233,8 @@ const InputBlock = ({ label, name, value, onChange, placeholder = "", type = "nu
       {label}
     </label>
     <input
-      type={type}
-      name={name}
-      value={value}
-      onChange={onChange}
-      placeholder={placeholder}
-      max={max}
-      min={min}
-      style={{
-        width: "100%",
-        padding: "10px",
-        border: `1px solid ${BORDER}`,
-        borderRadius: "4px",
-      }}
+      type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} max={max} min={min}
+      style={{ width: "100%", padding: "10px", border: `1px solid ${BORDER}`, borderRadius: "4px" }}
     />
   </div>
 );
