@@ -31,8 +31,6 @@ export class Aircraft {
     this.state = AircraftState.ENTERING_SIM;
   }
 
-
-
   public transitionTo(s: AircraftState): void {
     if (
       this.state === AircraftState.EXITED ||
@@ -73,11 +71,24 @@ export class Aircraft {
     }
   }
 
+  // ADDED: Probability trigger for natural emergencies
+  public triggerRandomEmergency(probability: number): boolean {
+    if (this.emergencyStatus !== EmergencyStatus.NONE) return false;
+
+    if (Math.random() < probability) {
+      // 50/50 split between mechanical and passenger health
+      this.emergencyStatus = Math.random() < 0.5 
+        ? EmergencyStatus.MECHANICAL_FAILURE 
+        : EmergencyStatus.PASSENGER_HEALTH;
+      return true;
+    }
+    return false;
+  }
+
   public isEmergency(): boolean {
     return this.emergencyStatus !== EmergencyStatus.NONE;
   }
 
-  // (Optional but very useful for the rest of the backend)
   public getState(): AircraftState {
     return this.state;
   }
@@ -89,7 +100,6 @@ export class Aircraft {
   public getOperator(): string {
     return this.operator;
   }
-
 
   public getScheduledTime(): Date {
     return this.scheduledTime;
