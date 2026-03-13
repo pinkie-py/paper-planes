@@ -223,10 +223,19 @@ export class Simulation {
   }
 
   private spawnTraffic() {
-    const inboundProb = this.config.inboundFlowRate / 60;
-    const outboundProb = this.config.outboundFlowRate / 60;
+    const inboundPerMinute = this.config.inboundFlowRate / 60;
+    const outboundPerMinute = this.config.outboundFlowRate / 60;
 
-    if (Math.random() < inboundProb) {
+    const inboundWhole = Math.floor(inboundPerMinute);
+    const outboundWhole = Math.floor(outboundPerMinute);
+
+    const inboundExtra = Math.random() < (inboundPerMinute - inboundWhole) ? 1 : 0;
+    const outboundExtra = Math.random() < (outboundPerMinute - outboundWhole) ? 1 : 0;
+
+    const inboundCount = inboundWhole + inboundExtra;
+    const outboundCount = outboundWhole + outboundExtra;
+
+    for (let i = 0; i < inboundCount; i++) {
       const fuel = Math.floor(Math.random() * (60 - 20 + 1) + 20);
       const ac = new Aircraft(
         `IN-${++this.aircraftCounter}`,
@@ -240,7 +249,7 @@ export class Simulation {
       this.holdingPattern.push(ac);
     }
 
-    if (Math.random() < outboundProb) {
+    for (let i = 0; i < outboundCount; i++) {
       const ac = new Aircraft(
         `OUT-${++this.aircraftCounter}`,
         "OP",
