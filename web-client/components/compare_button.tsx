@@ -3,11 +3,10 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 
-// 1. Updated Interface to accept children (text/content) and style
 interface CompareButtonProps {
-  label?: React.ReactNode; 
+  label?: React.ReactNode;
   style?: React.CSSProperties;
-  children?: React.ReactNode; 
+  children?: React.ReactNode;
 }
 
 const DS_BLUE = "#004696";
@@ -20,20 +19,21 @@ export default function CompareButton({ style, children, label }: CompareButtonP
   const [history, setHistory] = useState<any[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Internal styles for the modal
   const modalOverlayStyle: React.CSSProperties = {
     position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
     background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
   };
 
   const modalContentStyle: React.CSSProperties = {
-    background: '#fff', padding: '30px', borderRadius: '8px', width: '400px', maxHeight: '80vh', overflowY: 'auto'
+    background: '#fff', padding: '30px', borderRadius: '8px', width: '480px', maxHeight: '80vh', overflowY: 'auto',
+    fontFamily: 'sans-serif'
   };
 
   const handleOpenPicker = async () => {
     try {
       const res = await fetch('http://localhost:3000/history');
       const json = await res.json();
+      // Ensure we are accessing the data array correctly from your backend
       const sortedData = json.data ? [...json.data].reverse() : [];
       setHistory(sortedData);
       setShowPicker(true);
@@ -58,49 +58,78 @@ export default function CompareButton({ style, children, label }: CompareButtonP
 
   return (
     <>
-      {/* 2. Uses children OR label prop, default to 'Compare' if neither is provided */}
-      <button style={style} onClick={handleOpenPicker}>
+      <button 
+        style={{ ...style, cursor: 'pointer', fontFamily: 'inherit' }} 
+        onClick={handleOpenPicker}
+      >
         {children || label || "Compare"}
       </button>
 
       {showPicker && (
         <div style={modalOverlayStyle}>
           <div style={modalContentStyle}>
-            <h3 style={{ marginTop: 0, color: TEXT, fontFamily: 'sans-serif' }}>Select 2 Scenarios</h3>
-            <p style={{ fontSize: '14px', color: '#666', fontFamily: 'sans-serif' }}>
-              {selectedIds.length} of 2 selected
+            <h3 style={{ marginTop: 0, color: TEXT }}>Compare Scenarios</h3>
+            <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+              Select 2 scenarios to compare
             </p>
             
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', margin: '20px 0' }}>
-              {history.map((sim) => (
-                <div 
-                  key={sim.id} 
-                  onClick={() => toggleSelection(sim.id)}
-                  style={{
-                    padding: '10px',
-                    border: `2px solid ${selectedIds.includes(sim.id) ? DS_BLUE : BORDER}`,
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    fontFamily: 'sans-serif'
-                  }}
-                >
-                  <div style={{ fontWeight: 'bold', color: TEXT }}>{sim.name || `Sim ${sim.id.slice(0,5)}`}</div>
-                  <div style={{ fontSize: '12px', color: '#888' }}>{new Date(sim.timestamp).toLocaleString()}</div>
-                </div>
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', margin: '10px 0' }}>
+              {history.map((sim) => {
+                const isSelected = selectedIds.includes(sim.id);
+                // Map the data exactly like your Results page does
+                const config = sim.configurationUsed || {};
+
+                return (
+                  <div 
+                    key={sim.id} 
+                    onClick={() => toggleSelection(sim.id)}
+                    style={{
+                      padding: '12px',
+                      border: `2px solid ${isSelected ? DS_BLUE : BORDER}`,
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      background: isSelected ? '#f0f7ff' : '#fff',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontWeight: 'bold', color: TEXT }}>
+                        {sim.name || `Scenario ${sim.id.slice(0,5)}`}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#888' }}>
+                        <div style={{ fontSize: '12px', color: '#888' }}>{new Date(sim.timestamp).toLocaleString()}</div>
+                      </div>
+                    </div>
+
+                    {/* STATS PREVIEW: Matches your Results page layout */}
+                    {isSelected && (
+                      <div style={{ 
+                        marginTop: '10px', 
+                        paddingTop: '10px', 
+                        borderTop: `1px solid ${BORDER}`,
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '6px',
+                        fontSize: '12px',
+                        color: '#4b5563'
+                      }}>
+                        <div>Inbound: <b>{sim.configurationUsed.inboundFlowRate}</b></div>
+                        <div>Outbound: <b>{sim.configurationUsed.outboundFlowRate}</b></div>
+                        <div>Runways: <b>{sim.configurationUsed.runways.length}</b></div>
+                        <div>Runs: <b>{sim.configurationUsed.runCount}</b></div>
+                        <div> Duration: <b>{sim.configurationUsed.durationMinutes} min</b></div>
+                        <div> Seed: <b>{sim.configurationUsed.seed ?? "Auto"}</b></div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '20px' }}>
               <button 
                 onClick={() => setShowPicker(false)} 
-                style={{ 
-                  background: 'none', 
-                  border: 'none', 
-                  cursor: 'pointer', 
-                  color: '#666',
-                  fontWeight: 600
-                }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666', fontWeight: 600 }}
               >
                 Cancel
               </button>
@@ -108,12 +137,12 @@ export default function CompareButton({ style, children, label }: CompareButtonP
                 onClick={handleCompareGo} 
                 disabled={selectedIds.length !== 2}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 20px',
                   borderRadius: '6px',
                   background: selectedIds.length === 2 ? DS_BLUE : '#ccc',
                   color: '#fff',
                   border: 'none',
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: selectedIds.length === 2 ? 'pointer' : 'not-allowed'
                 }}
               >
