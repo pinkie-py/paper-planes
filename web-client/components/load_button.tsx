@@ -107,6 +107,7 @@ export default function LoadButton({ style, children }: LoadButtonProps) {
                         <div>Outbound: <b>{sim.configurationUsed.outboundFlowRate}</b></div>
                         <div>Runways: <b>{sim.configurationUsed.runways.length}</b></div>
                         <div>Runs: <b>{sim.configurationUsed.runCount}</b></div>
+                        <div> Duration: <b>{sim.configurationUsed.durationMinutes} min</b></div>
                         <div> Seed: <b>{sim.configurationUsed.seed ?? "Auto"}</b></div>
                       </div>
                     )}
