@@ -206,9 +206,9 @@ export class AppService {
       runCount: config.runCount || 1,
       seed: config.seed ?? null,
       runways: config.runways || [],
-      // Safely apply the probabilities, falling back to defaults if not provided
-      runwayEmergencyProbability: config.runwayEmergencyProbability ?? 0.005,
+      runwayEmergencyProbability: config.runwayEmergencyProbability ?? 0.02,
       aircraftEmergencyProbability: config.aircraftEmergencyProbability ?? 0.002,
+      scheduledClosures: config.scheduledClosures || [], // <-- ADDED THIS
     };
   }
 

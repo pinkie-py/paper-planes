@@ -251,6 +251,7 @@ const Configure: React.FC = () => {
             <ClosureAdder
               runwayCount={runwayCount}
               durationHours={durationHours}
+              existingClosures={scheduledClosures} // <-- ADDED THIS
               onAdd={(closure) => setScheduledClosures([...scheduledClosures, closure])}
             />
           </section>
@@ -315,98 +316,129 @@ const Configure: React.FC = () => {
 const ClosureAdder = ({
   runwayCount,
   durationHours,
+  existingClosures, // <-- ADDED THIS
   onAdd,
 }: {
   runwayCount: number;
   durationHours: number;
+  existingClosures: ScheduledClosure[]; // <-- ADDED THIS
   onAdd: (c: ScheduledClosure) => void;
 }) => {
   const [runwayIndex, setRunwayIndex] = useState(0);
   const [startMinute, setStartMinute] = useState("0");
   const [durationMinutes, setDurationMinutes] = useState("30");
   const [reason, setReason] = useState("RUNWAY_INSPECTION");
+  const [localError, setLocalError] = useState<string | null>(null); // <-- ADDED THIS
   const maxMinutes = durationHours * 60;
 
   const handleAdd = () => {
     const start = Math.max(0, Math.min(maxMinutes - 1, parseInt(startMinute) || 0));
     const dur = Math.max(1, Math.min(maxMinutes - start, parseInt(durationMinutes) || 30));
+    const end = start + dur;
+
+    // VALIDATION: Check for overlaps on the same runway
+    const hasOverlap = existingClosures.some((c) => {
+      if (c.runwayIndex !== runwayIndex) return false;
+      const cEnd = c.startMinute + c.durationMinutes;
+      // Math to check if two time ranges overlap
+      return Math.max(start, c.startMinute) < Math.min(end, cEnd);
+    });
+
+    if (hasOverlap) {
+      setLocalError("Error: This overlaps with an existing closure on this runway.");
+      return;
+    }
+
+    setLocalError(null);
     onAdd({ runwayIndex, startMinute: start, durationMinutes: dur, reason });
   };
 
   return (
-    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", flexWrap: "wrap" }}>
-      <div>
-        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
-          Runway
-        </label>
-        <select
-          style={{ ...selectStyle, width: "130px" }}
-          value={runwayIndex}
-          onChange={(e) => setRunwayIndex(Number(e.target.value))}
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", flexWrap: "wrap" }}>
+        <div>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
+            Runway
+          </label>
+          <select
+            style={{ ...selectStyle, width: "130px" }}
+            value={runwayIndex}
+            onChange={(e) => {
+              setRunwayIndex(Number(e.target.value));
+              setLocalError(null);
+            }}
+          >
+            {Array.from({ length: runwayCount }).map((_, i) => (
+              <option key={i} value={i}>
+                Runway {String(i + 1).padStart(2, "0")}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
+            Start (min)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max={maxMinutes - 1}
+            value={startMinute}
+            onChange={(e) => {
+              setStartMinute(e.target.value);
+              setLocalError(null);
+            }}
+            style={{ width: "90px", padding: "8px 10px", border: `1px solid ${BORDER}`, borderRadius: "6px", fontSize: "13px" }}
+          />
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
+            Duration (min)
+          </label>
+          <input
+            type="number"
+            min="1"
+            max={maxMinutes}
+            value={durationMinutes}
+            onChange={(e) => {
+              setDurationMinutes(e.target.value);
+              setLocalError(null);
+            }}
+            style={{ width: "100px", padding: "8px 10px", border: `1px solid ${BORDER}`, borderRadius: "6px", fontSize: "13px" }}
+          />
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
+            Reason
+          </label>
+          <select
+            style={{ ...selectStyle, width: "160px" }}
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          >
+            <option value="RUNWAY_INSPECTION">Inspection</option>
+            <option value="SNOW_CLEARANCE">Snow clearance</option>
+            <option value="EQUIPMENT_FAILURE">Failure</option>
+          </select>
+        </div>
+        <button
+          onClick={handleAdd}
+          style={{
+            padding: "8px 18px",
+            background: DS_BLUE,
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+            fontWeight: "700",
+            cursor: "pointer",
+            fontSize: "13px",
+            height: "37px",
+          }}
         >
-          {Array.from({ length: runwayCount }).map((_, i) => (
-            <option key={i} value={i}>
-              Runway {String(i + 1).padStart(2, "0")}
-            </option>
-          ))}
-        </select>
+          + Add closure
+        </button>
       </div>
-      <div>
-        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
-          Start (min)
-        </label>
-        <input
-          type="number"
-          min="0"
-          max={maxMinutes - 1}
-          value={startMinute}
-          onChange={(e) => setStartMinute(e.target.value)}
-          style={{ width: "90px", padding: "8px 10px", border: `1px solid ${BORDER}`, borderRadius: "6px", fontSize: "13px" }}
-        />
-      </div>
-      <div>
-        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
-          Duration (min)
-        </label>
-        <input
-          type="number"
-          min="1"
-          max={maxMinutes}
-          value={durationMinutes}
-          onChange={(e) => setDurationMinutes(e.target.value)}
-          style={{ width: "100px", padding: "8px 10px", border: `1px solid ${BORDER}`, borderRadius: "6px", fontSize: "13px" }}
-        />
-      </div>
-      <div>
-        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
-          Reason
-        </label>
-        <select
-          style={{ ...selectStyle, width: "160px" }}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-        >
-          <option value="RUNWAY_INSPECTION">Inspection</option>
-          <option value="SNOW_CLEARANCE">Snow clearance</option>
-          <option value="EQUIPMENT_FAILURE">Failure</option>
-        </select>
-      </div>
-      <button
-        onClick={handleAdd}
-        style={{
-          padding: "8px 18px",
-          background: DS_BLUE,
-          color: "white",
-          border: "none",
-          borderRadius: "6px",
-          fontWeight: "700",
-          cursor: "pointer",
-          fontSize: "13px",
-          height: "37px",
-        }}
-      >
-        + Add closure
-      </button>
+      {localError && <div style={{ color: "#dc2626", fontSize: "13px", fontWeight: "600" }}>{localError}</div>}
     </div>
   );
 };
