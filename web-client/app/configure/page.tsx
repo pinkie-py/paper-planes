@@ -14,6 +14,13 @@ const max_outbound_flow_per_hour = 250;
 const max_runs = 50;
 const max_duration_hours = 24;
 
+type ScheduledClosure = {
+  runwayIndex: number;
+  startMinute: number;
+  durationMinutes: number;
+  reason: string;
+};
+
 const Configure: React.FC = () => {
   const router = useRouter();
   const [errorField, setErrorField] = useState<string | null>(null);
@@ -28,6 +35,7 @@ const Configure: React.FC = () => {
   });
 
   const [runwayConfigs, setRunwayConfigs] = useState<Record<number, any>>({});
+  const [scheduledClosures, setScheduledClosures] = useState<ScheduledClosure[]>([]);
 
   useEffect(() => {
     const count = Math.min(max_runways, Math.max(1, parseInt(formData.runways) || 1));
@@ -88,6 +96,12 @@ const Configure: React.FC = () => {
         mode: runwayConfigs[i]?.mode || "MIXED",
         status: runwayConfigs[i]?.status || "AVAILABLE",
       })),
+      scheduledClosures: scheduledClosures.map((c) => ({
+        runwayId: `Runway ${String(c.runwayIndex + 1).padStart(2, "0")}`,
+        startMinute: c.startMinute,
+        durationMinutes: c.durationMinutes,
+        reason: c.reason,
+      })),
     };
 
     sessionStorage.setItem("pp:simConfig", JSON.stringify(payload));
@@ -95,6 +109,9 @@ const Configure: React.FC = () => {
     sessionStorage.removeItem("latestSimulation");
     router.push("/simulation");
   };
+
+  const runwayCount = Math.max(1, parseInt(formData.runways) || 1);
+  const durationHours = Math.max(1, parseInt(formData.durationHours) || 1);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f6f8fb", fontFamily: "sans-serif" }}>
@@ -143,12 +160,72 @@ const Configure: React.FC = () => {
             </div>
           </section>
 
-          <section style={{ ...cardStyle, display: "flex", alignItems: "center", justifyContent: "center", borderStyle: "dashed" }}>
-            <p style={{ color: "#9ca3af", fontWeight: "600" }}>New Section Content Placeholder</p>
+          <section style={cardStyle}>
+            <h2 style={sectionHeaderStyle}>Events</h2>
 
+            <h3 style={{ fontSize: "14px", fontWeight: "700", color: TEXT_DARK, marginBottom: "12px", marginTop: 0 }}>
+              Scheduled Runway Closures
+            </h3>
 
+            {scheduledClosures.length > 0 && (
+              <div style={{ marginBottom: "14px", display: "flex", flexDirection: "column", gap: "8px" }}>
+                {scheduledClosures.map((c, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "10px",
+                      padding: "8px 12px",
+                      background: "#f6f8fb",
+                      border: `1px solid ${BORDER}`,
+                      borderRadius: "6px",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <span style={{ fontWeight: "700", color: DS_BLUE, minWidth: "80px" }}>
+                      Runway {String(c.runwayIndex + 1).padStart(2, "0")}
+                    </span>
+                    <span style={{ color: "#6b7280" }}>
+                      T+{c.startMinute}min → +{c.startMinute + c.durationMinutes}min
+                    </span>
+                    <span
+                      style={{
+                        background: "#fee2e2",
+                        color: "#991b1b",
+                        borderRadius: "4px",
+                        padding: "2px 7px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                      }}
+                    >
+                      {c.reason.replace("_", " ")}
+                    </span>
+                    <button
+                      onClick={() => setScheduledClosures(scheduledClosures.filter((_, i) => i !== idx))}
+                      style={{
+                        marginLeft: "auto",
+                        background: "none",
+                        border: "none",
+                        color: "#9ca3af",
+                        cursor: "pointer",
+                        fontSize: "16px",
+                        lineHeight: 1,
+                        padding: "0 4px",
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            
+            <ClosureAdder
+              runwayCount={runwayCount}
+              durationHours={durationHours}
+              onAdd={(closure) => setScheduledClosures([...scheduledClosures, closure])}
+            />
           </section>
         </div>
 
@@ -158,7 +235,7 @@ const Configure: React.FC = () => {
               Runway Configuration
             </h2>
           </div>
-          
+
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -175,10 +252,10 @@ const Configure: React.FC = () => {
                       Runway {String(i + 1).padStart(2, "0")}
                     </td>
                     <td style={tdStyle}>
-                      <select 
-                        style={selectStyle} 
-                        value={runwayConfigs[i]?.mode} 
-                        onChange={(e) => setRunwayConfigs({...runwayConfigs, [i]: {...runwayConfigs[i], mode: e.target.value}})}
+                      <select
+                        style={selectStyle}
+                        value={runwayConfigs[i]?.mode}
+                        onChange={(e) => setRunwayConfigs({ ...runwayConfigs, [i]: { ...runwayConfigs[i], mode: e.target.value } })}
                       >
                         <option value="MIXED">Mixed mode</option>
                         <option value="TAKEOFF">Take-off only</option>
@@ -186,10 +263,10 @@ const Configure: React.FC = () => {
                       </select>
                     </td>
                     <td style={tdStyle}>
-                      <select 
-                        style={selectStyle} 
-                        value={runwayConfigs[i]?.status} 
-                        onChange={(e) => setRunwayConfigs({...runwayConfigs, [i]: {...runwayConfigs[i], status: e.target.value}})}
+                      <select
+                        style={selectStyle}
+                        value={runwayConfigs[i]?.status}
+                        onChange={(e) => setRunwayConfigs({ ...runwayConfigs, [i]: { ...runwayConfigs[i], status: e.target.value } })}
                       >
                         <option value="AVAILABLE">Available</option>
                         <option value="RUNWAY_INSPECTION">Inspection</option>
@@ -204,6 +281,105 @@ const Configure: React.FC = () => {
           </div>
         </section>
       </main>
+    </div>
+  );
+};
+
+const ClosureAdder = ({
+  runwayCount,
+  durationHours,
+  onAdd,
+}: {
+  runwayCount: number;
+  durationHours: number;
+  onAdd: (c: ScheduledClosure) => void;
+}) => {
+  const [runwayIndex, setRunwayIndex] = useState(0);
+  const [startMinute, setStartMinute] = useState("0");
+  const [durationMinutes, setDurationMinutes] = useState("30");
+  const [reason, setReason] = useState("RUNWAY_INSPECTION");
+  const maxMinutes = durationHours * 60;
+
+  const handleAdd = () => {
+    const start = Math.max(0, Math.min(maxMinutes - 1, parseInt(startMinute) || 0));
+    const dur = Math.max(1, Math.min(maxMinutes - start, parseInt(durationMinutes) || 30));
+    onAdd({ runwayIndex, startMinute: start, durationMinutes: dur, reason });
+  };
+
+  return (
+    <div style={{ display: "flex", gap: "10px", alignItems: "flex-end", flexWrap: "wrap" }}>
+      <div>
+        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
+          Runway
+        </label>
+        <select
+          style={{ ...selectStyle, width: "130px" }}
+          value={runwayIndex}
+          onChange={(e) => setRunwayIndex(Number(e.target.value))}
+        >
+          {Array.from({ length: runwayCount }).map((_, i) => (
+            <option key={i} value={i}>
+              Runway {String(i + 1).padStart(2, "0")}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
+          Start (min)
+        </label>
+        <input
+          type="number"
+          min="0"
+          max={maxMinutes - 1}
+          value={startMinute}
+          onChange={(e) => setStartMinute(e.target.value)}
+          style={{ width: "90px", padding: "8px 10px", border: `1px solid ${BORDER}`, borderRadius: "6px", fontSize: "13px" }}
+        />
+      </div>
+      <div>
+        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
+          Duration (min)
+        </label>
+        <input
+          type="number"
+          min="1"
+          max={maxMinutes}
+          value={durationMinutes}
+          onChange={(e) => setDurationMinutes(e.target.value)}
+          style={{ width: "100px", padding: "8px 10px", border: `1px solid ${BORDER}`, borderRadius: "6px", fontSize: "13px" }}
+        />
+      </div>
+      <div>
+        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", marginBottom: "4px", color: "#6b7280" }}>
+          Reason
+        </label>
+        <select
+          style={{ ...selectStyle, width: "160px" }}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        >
+          <option value="RUNWAY_INSPECTION">Inspection</option>
+          <option value="SNOW_CLEARANCE">Snow clearance</option>
+          <option value="EQUIPMENT_FAILURE">Failure</option>
+        </select>
+      </div>
+      <button
+        onClick={handleAdd}
+        style={{
+          padding: "8px 18px",
+          background: DS_BLUE,
+          color: "white",
+          border: "none",
+          borderRadius: "6px",
+          fontWeight: "700",
+          cursor: "pointer",
+          fontSize: "13px",
+          height: "37px",
+        }}
+      >
+        + Add closure
+      </button>
     </div>
   );
 };
