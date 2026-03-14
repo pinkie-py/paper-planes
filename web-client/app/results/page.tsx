@@ -13,6 +13,83 @@ const PANEL_BG = "#eef2f6";
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+const safeNumber = (value: any) => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
+
+function summariseRun(run: any) {
+  if (
+    run &&
+    typeof run.totalProcessed === "number" &&
+    typeof run.diverted === "number"
+  ) {
+    return run;
+  }
+
+  const aircraft = Array.isArray(run?.aircraft) ? run.aircraft : [];
+
+  const exited = aircraft.filter((a: any) => a.finalState === "EXITED");
+  const diverted = aircraft.filter((a: any) => a.finalState === "DIVERTED").length;
+  const cancelled = aircraft.filter((a: any) => a.finalState === "CANCELLED").length;
+  const holdingQueueSizeRemaining = aircraft.filter((a: any) => a.finalState === "HOLDING").length;
+  const takeoffQueueSizeRemaining = aircraft.filter((a: any) => a.finalState === "TAKEOFF_QUEUE").length;
+
+  const delayValues = exited.map(
+    (a: any) => safeNumber(a.holdingMinutes) + safeNumber(a.takeoffQueueMinutes)
+  );
+
+  const averageDelayMins =
+    delayValues.length > 0
+      ? delayValues.reduce((sum: number, v: number) => sum + v, 0) / delayValues.length
+      : 0;
+
+  return {
+    diverted,
+    cancelled,
+    holdingQueueSizeRemaining,
+    takeoffQueueSizeRemaining,
+    averageDelayMins,
+    totalProcessed: exited.length,
+  };
+}
+
+function aggregateRuns(runs: any[]) {
+  const keys = [
+    "diverted",
+    "cancelled",
+    "holdingQueueSizeRemaining",
+    "takeoffQueueSizeRemaining",
+    "averageDelayMins",
+    "totalProcessed",
+  ] as const;
+
+  const out: any = {};
+
+  for (const key of keys) {
+    const values = runs.map((r) => safeNumber(r[key]));
+    const mean =
+      values.length > 0
+        ? values.reduce((sum, v) => sum + v, 0) / values.length
+        : 0;
+
+    let stdDev = 0;
+    if (values.length > 1) {
+      const variance =
+        values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) /
+        (values.length - 1);
+      stdDev = Math.sqrt(variance);
+    }
+
+    out[key] = {
+      mean: round1(mean),
+      stdDev: round1(stdDev),
+    };
+  }
+
+  return out;
+}
+
 export default function ResultsPage() {
   const [simData, setSimData] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -70,7 +147,13 @@ export default function ResultsPage() {
   }
 
   const config = simData.configurationUsed;
-  const aggregated = simData.aggregatedResults;
+
+  const perRunSummary = (simData.perRunResults ?? []).map(summariseRun);
+  const aggregated =
+    simData.aggregatedResults &&
+    Number.isFinite(simData.aggregatedResults?.totalProcessed?.mean)
+      ? simData.aggregatedResults
+      : aggregateRuns(perRunSummary);
 
   const scenario = {
     name: "Custom Simulation",
@@ -418,7 +501,7 @@ export default function ResultsPage() {
                       {mapping.label}
                     </td>
 
-                    {simData.perRunResults.map((run: any, i: number) => (
+                    {perRunSummary.map((run: any, i: number) => (
                       <td
                         key={i}
                         style={{

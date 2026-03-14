@@ -71,6 +71,9 @@ export class Simulation {
   private allAircraft: Aircraft[] = [];
   private historyTicks: any[] = [];
 
+  private inboundSpawnCarry = 0;
+  private outboundSpawnCarry = 0;
+
   private aircraftCounter = 0;
   private readonly occupancyDurationMs = 3 * 60 * 1000;
 
@@ -279,20 +282,13 @@ export class Simulation {
     };
   }
 
-    private spawnTraffic() {
-    const inboundPerMinute = this.config.inboundFlowRate / 60;
-    const outboundPerMinute = this.config.outboundFlowRate / 60;
+  private spawnTraffic() {
+    this.inboundSpawnCarry += this.config.inboundFlowRate / 60;
+    this.outboundSpawnCarry += this.config.outboundFlowRate / 60;
 
-    const inboundWhole = Math.floor(inboundPerMinute);
-    const outboundWhole = Math.floor(outboundPerMinute);
+    while (this.inboundSpawnCarry >= 1) {
+      this.inboundSpawnCarry -= 1;
 
-    const inboundExtra = Math.random() < (inboundPerMinute - inboundWhole) ? 1 : 0;
-    const outboundExtra = Math.random() < (outboundPerMinute - outboundWhole) ? 1 : 0;
-
-    const inboundCount = inboundWhole + inboundExtra;
-    const outboundCount = outboundWhole + outboundExtra;
-
-    for (let i = 0; i < inboundCount; i++) {
       const fuel = Math.floor(Math.random() * (60 - 20 + 1) + 20);
       const ac = new Aircraft(
         `IN-${++this.aircraftCounter}`,
@@ -302,11 +298,15 @@ export class Simulation {
         this.currentTime,
         fuel
       );
+
       ac.transitionTo(AircraftState.HOLDING);
       this.holdingPattern.push(ac);
+      this.allAircraft.push(ac); // IMPORTANT
     }
 
-    for (let i = 0; i < outboundCount; i++) {
+    while (this.outboundSpawnCarry >= 1) {
+      this.outboundSpawnCarry -= 1;
+
       const ac = new Aircraft(
         `OUT-${++this.aircraftCounter}`,
         "OP",
@@ -315,8 +315,10 @@ export class Simulation {
         this.currentTime,
         100
       );
+
       ac.transitionTo(AircraftState.TAKEOFF_QUEUE);
       this.takeoffQueue.push(ac);
+      this.allAircraft.push(ac); // IMPORTANT
     }
   }
 
