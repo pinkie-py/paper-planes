@@ -77,6 +77,8 @@ type SimulationConfig = {
   runCount?: number;
   seed?: number | null;
   runways: { id: string; mode: RunwayMode; status: RunwayStatus }[];
+  runwayEmergencyProbability?: number; // ADDED
+  aircraftEmergencyProbability?: number; // ADDED
 };
 
 type SimulateResponse = {
@@ -183,6 +185,10 @@ function normalizeStoredConfig(raw: any): SimulationConfig {
   const runCount = Number(raw?.runCount ?? raw?.numRuns ?? 1);
   const seed = raw?.seed ?? null;
 
+  // Extract the new probabilities
+  const runwayEmergencyProbability = raw?.runwayEmergencyProbability;
+  const aircraftEmergencyProbability = raw?.aircraftEmergencyProbability;
+
   let runways: { id: string; mode: RunwayMode; status: RunwayStatus }[] = [];
 
   if (Array.isArray(raw?.runways)) {
@@ -203,6 +209,8 @@ function normalizeStoredConfig(raw: any): SimulationConfig {
     runCount,
     seed,
     runways,
+    runwayEmergencyProbability, // PASSED ALONG
+    aircraftEmergencyProbability, // PASSED ALONG
   };
 }
 
@@ -232,6 +240,8 @@ function buildFallbackConfig(): SimulationConfig {
     runCount: 3,
     seed: null,
     runways: buildDefaultRunways(3),
+    runwayEmergencyProbability: 0.01, // 1% Default
+    aircraftEmergencyProbability: 0.005, // 0.05% Default
   };
 }
 

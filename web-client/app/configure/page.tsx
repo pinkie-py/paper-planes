@@ -13,6 +13,7 @@ const max_inbound_flow_per_hour = 250;
 const max_outbound_flow_per_hour = 250;
 const max_runs = 50;
 const max_duration_hours = 24;
+const max_probability = 2; // Maximum 2% limit for emergencies
 
 type ScheduledClosure = {
   runwayIndex: number;
@@ -32,6 +33,8 @@ const Configure: React.FC = () => {
     seed: "",
     runways: "1",
     durationHours: "1",
+    runwayProb: "2", // Default 2%
+    aircraftProb: "0.2", // Default 0.2%
   });
 
   const [runwayConfigs, setRunwayConfigs] = useState<Record<number, any>>({});
@@ -50,7 +53,8 @@ const Configure: React.FC = () => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    const val = parseInt(value);
+    // Changed to parseFloat to allow decimal probabilities (e.g. 0.5%)
+    const val = parseFloat(value);
 
     const limits: Record<string, number> = {
       runways: max_runways,
@@ -58,6 +62,8 @@ const Configure: React.FC = () => {
       outboundFlow: max_outbound_flow_per_hour,
       numRuns: max_runs,
       durationHours: max_duration_hours,
+      runwayProb: max_probability,
+      aircraftProb: max_probability,
     };
 
     if (!isNaN(val)) {
@@ -66,7 +72,7 @@ const Configure: React.FC = () => {
         return;
       }
 
-      if ((name === "inboundFlow" || name === "outboundFlow") && val < 0) {
+      if ((name === "inboundFlow" || name === "outboundFlow" || name === "runwayProb" || name === "aircraftProb") && val < 0) {
         setErrorField(`${name}_min`);
         return;
       }
@@ -91,6 +97,9 @@ const Configure: React.FC = () => {
       durationMinutes: hours * 60,
       runCount: Number(formData.numRuns) || 1,
       seed: formData.seed ? Number(formData.seed) : null,
+      // Divide by 100 to convert percentage (e.g. 2) to decimal probability (0.02)
+      runwayEmergencyProbability: (Number(formData.runwayProb) || 0) / 100,
+      aircraftEmergencyProbability: (Number(formData.aircraftProb) || 0) / 100,
       runways: Array.from({ length: runwayCount }).map((_, i) => ({
         id: `Runway ${String(i + 1).padStart(2, "0")}`,
         mode: runwayConfigs[i]?.mode || "MIXED",
@@ -164,6 +173,24 @@ const Configure: React.FC = () => {
             <h2 style={sectionHeaderStyle}>Events</h2>
 
             <h3 style={{ fontSize: "14px", fontWeight: "700", color: TEXT_DARK, marginBottom: "12px", marginTop: 0 }}>
+              Natural Emergency Probabilities
+            </h3>
+            
+            <div style={{ display: "grid", gap: "15px", marginBottom: "25px" }}>
+              <div>
+                <InputBlock label={`Runway Failure Probability (Max ${max_probability}%)`} name="runwayProb" value={formData.runwayProb} onChange={handleChange} min="0" max={max_probability} step="0.1" />
+                {errorField === "runwayProb_max" && <ErrorMessage limit={max_probability} />}
+                {errorField === "runwayProb_min" && <MinErrorMessage msg="Probability cannot be less than 0%." />}
+              </div>
+
+              <div>
+                <InputBlock label={`Aircraft Emergency Probability (Max ${max_probability}%)`} name="aircraftProb" value={formData.aircraftProb} onChange={handleChange} min="0" max={max_probability} step="0.1" />
+                {errorField === "aircraftProb_max" && <ErrorMessage limit={max_probability} />}
+                {errorField === "aircraftProb_min" && <MinErrorMessage msg="Probability cannot be less than 0%." />}
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: "14px", fontWeight: "700", color: TEXT_DARK, marginBottom: "12px", marginTop: 0, paddingTop: "20px", borderTop: `1px solid ${BORDER}` }}>
               Scheduled Runway Closures
             </h3>
 
@@ -393,7 +420,7 @@ const applyButtonStyle: React.CSSProperties = { padding: "12px 30px", background
 
 const ErrorMessage = ({ limit }: { limit: number }) => (
   <p style={{ color: "#dc2626", fontSize: "12px", marginTop: "-10px", marginBottom: "5px", fontWeight: "600" }}>
-    Maximum {limit} allowed.
+    Maximum {limit}% allowed.
   </p>
 );
 
@@ -403,13 +430,14 @@ const MinErrorMessage = ({ msg }: { msg: string }) => (
   </p>
 );
 
-const InputBlock = ({ label, name, value, onChange, placeholder = "", type = "number", max, min }: any) => (
+// Added step parameter to cleanly accept decimals
+const InputBlock = ({ label, name, value, onChange, placeholder = "", type = "number", max, min, step = "1" }: any) => (
   <div style={{ marginBottom: "10px" }}>
     <label style={{ display: "block", marginBottom: "5px", fontSize: "14px", fontWeight: "600" }}>
       {label}
     </label>
     <input
-      type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} max={max} min={min}
+      type={type} name={name} value={value} onChange={onChange} placeholder={placeholder} max={max} min={min} step={step}
       style={{ width: "100%", padding: "10px", border: `1px solid ${BORDER}`, borderRadius: "4px" }}
     />
   </div>

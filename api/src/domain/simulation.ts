@@ -57,8 +57,7 @@ export type SimulationSnapshot = {
 
 export class Simulation {
   private currentTime: Date;
-
-  private startTimeMs: number; // ADDED: Tracks simulation absolute start for accurate delay math
+  private startTimeMs: number;
   private elapsedMinutes = 0;
 
   private holdingPattern: Aircraft[] = [];
@@ -69,15 +68,11 @@ export class Simulation {
   private runways: Runway[];
   private log: SnapshotLogEntry[] = [];
 
-
   private allAircraft: Aircraft[] = [];
   private historyTicks: any[] = [];
 
-  private inboundSpawnCarry = 0;
-  private outboundSpawnCarry = 0;
-
   private aircraftCounter = 0;
-  private readonly occupancyDurationMs = 60 * 1000;
+  private readonly occupancyDurationMs = 3 * 60 * 1000;
 
   // Track natural closures to restore them later: { runwayNumber: recoveryTimeMs }
   private naturalClosures = new Map<string, number>();
@@ -112,7 +107,6 @@ export class Simulation {
 
     // 5. Assign waiting planes to whatever runways are still available
     this.allocateRunways();
-
 
     // 6. Record the history snapshot
     this.historyTicks.push({
@@ -242,7 +236,6 @@ export class Simulation {
     };
   }
 
-  // REWRITTEN: Now perfectly generates the `RunResult` object for your analytics calculator!
   public getMetrics() {
     const configOut = {
       inboundFlowPerHour: this.config.inboundFlowRate,
@@ -257,12 +250,10 @@ export class Simulation {
 
       let st = ac.getState();
       
-      // If they made it to the runway successfully, treat them as fully processed (EXITED)
       if (st === AircraftState.RUNWAY) {
         st = AircraftState.EXITED;
       }
 
-      // If they are still stuck in holding/takeoff at the end, their delay continues until simulation ends
       if (st === AircraftState.HOLDING || st === AircraftState.TAKEOFF_QUEUE) {
         actMs = this.currentTime.getTime();
       }
@@ -289,12 +280,10 @@ export class Simulation {
   }
 
   private spawnTraffic() {
-    this.inboundSpawnCarry += this.config.inboundFlowRate / 60;
-    this.outboundSpawnCarry += this.config.outboundFlowRate / 60;
+    const inboundProb = this.config.inboundFlowRate / 60;
+    const outboundProb = this.config.outboundFlowRate / 60;
 
-    while (this.inboundSpawnCarry >= 1) {
-      this.inboundSpawnCarry -= 1;
-
+    if (Math.random() < inboundProb) {
       const fuel = Math.floor(Math.random() * (60 - 20 + 1) + 20);
       const ac = new Aircraft(
         `IN-${++this.aircraftCounter}`,
@@ -304,15 +293,12 @@ export class Simulation {
         this.currentTime,
         fuel
       );
-
       ac.transitionTo(AircraftState.HOLDING);
       this.holdingPattern.push(ac);
-      this.allAircraft.push(ac); // IMPORTANT
+      this.allAircraft.push(ac); 
     }
 
-    while (this.outboundSpawnCarry >= 1) {
-      this.outboundSpawnCarry -= 1;
-
+    if (Math.random() < outboundProb) {
       const ac = new Aircraft(
         `OUT-${++this.aircraftCounter}`,
         "OP",
@@ -321,10 +307,9 @@ export class Simulation {
         this.currentTime,
         100
       );
-
       ac.transitionTo(AircraftState.TAKEOFF_QUEUE);
       this.takeoffQueue.push(ac);
-      this.allAircraft.push(ac); // IMPORTANT
+      this.allAircraft.push(ac);
     }
   }
 
@@ -388,7 +373,7 @@ export class Simulation {
 
       if (ac.getFuelRemaining() <= 0) {
         ac.transitionTo(AircraftState.DIVERTED);
-        ac.setActualTime(this.currentTime); // ADDED: Record exact time of diversion
+        ac.setActualTime(this.currentTime);
         this.divertedFlights.push(ac);
         this.holdingPattern.splice(i, 1);
         this.logEvent(`${ac.getAircraftID()} diverted due to critically low fuel`);
@@ -400,7 +385,7 @@ export class Simulation {
       ac.checkWaitTime(this.currentTime);
 
       if (ac.getState() === AircraftState.CANCELLED) {
-        ac.setActualTime(this.currentTime); // ADDED: Record exact time of cancellation
+        ac.setActualTime(this.currentTime); 
         this.cancelledFlights.push(ac);
         this.takeoffQueue.splice(i, 1);
         this.logEvent(
