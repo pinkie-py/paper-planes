@@ -72,11 +72,49 @@ const HelpManual = () => {
             <div style={{ padding: '24px', minHeight: '200px' }}>
               <h4 style={{ margin: '0 0 12px', color: '#111827', fontSize: '16px' }}>{activeTab} Page Guide</h4>
               <div style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6' }}>
-                {activeTab === 'Home' && <p>Dashboard overview text goes here.</p>}
-                {activeTab === 'Configure' && <p>Instructions for setting up parameters.</p>}
-                {activeTab === 'Simulation' && <p>How to monitor the live simulation.</p>}
-                {activeTab === 'Results' && <p>Interpreting the data and graphs.</p>}
-                {activeTab === 'Compare' && <p>How to benchmark different runs.</p>}
+                {activeTab === 'Home' && (
+        <div>
+            <p>To start your first simulation, click the <strong>Configure Scenario</strong> button!</p>
+            <p>If you would like to load a previous scenario, click the <strong>Load</strong> button.</p>
+            <p>If you would like to compare different scenarios, click the <strong>Compare</strong> button.</p>
+        </div>
+        )}
+
+        {activeTab === 'Configure' && (
+        <div>
+            <p>Use this page to define the parameters of your airport model and simulation settings.</p>
+            <p>Define your model by adjusting the input parameters in the <strong> Traffic & Run Settings</strong> panel.</p>
+            <p>To change the probabilities of natural emergencies, adjust it using environmental variables in the <strong>Events</strong> panel.</p>
+            <p> To add scheduled closures or disruptions, use the <strong>Scheduled Runway Closures</strong> panel.</p>
+            <p> To set up a configuration for each runway, use the <strong>Runway Configurations</strong> panel.</p>
+            <p>Once you have finalized your configuration, click <strong >Go to Live Simulation</strong> to initialise the simulation engine.</p>
+        </div>
+        )}
+
+        {activeTab === 'Simulation' && (
+        <div>
+            <p>Click <strong> Start </strong> to watch your simulation unfold in real-time through the live viewport.</p>
+            <p>You can use the playback controls to <strong> Pause or Resume</strong> the simulation.</p>
+            <p>To adjust the speed, you can click one the speed controls <strong>1x, 2x, 4x, 8x</strong>. Alternatively, you can skip the simulation by clicking <strong> Finish now </strong>.  </p>
+            <p>Once you have finished running the simulation, click <strong> View Results </strong> to view the calculated outputs and data visualisations.</p>
+        </div>
+        )}
+
+        {activeTab === 'Results' && (
+        <div>
+            <p>Use this page to analyse the completed run through detailed data visualisations and performance metrics.</p>
+            <p>To generate a portable document of these findings, click the <strong>Export PDF</strong> button.</p>
+            <p>If you want to keep this simulation for future benchmarking, click <strong>Save to Database</strong>.</p>
+            <p>To clear the current data and build a different model from scratch, click <strong>New Scenario</strong>.</p>
+        </div>
+        )}
+
+        {activeTab === 'Compare' && (
+        <div>
+            <p>Use this page to compare the results of different scenarios side by side.</p>
+            <p>To generate a consolidated report of these findings, click the <strong>Export PDF Comparison</strong> button.</p>
+        </div>
+        )}
               </div>
             </div>
 
