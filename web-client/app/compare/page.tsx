@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Header from "@/components/header";
+import HelpManual from "@/components/help_button";
 import Link from "next/link";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -51,7 +52,8 @@ export default function ComparePage() {
     if (!element) return;
 
     try {
-      const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+      // const canvas = await html2canvas(element, { scale: 2, useCORS: true });
+      const canvas = await html2canvas(element, {useCORS: true });
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF("p", "mm", "a4");
       
@@ -188,6 +190,7 @@ export default function ComparePage() {
           </tbody>
         </table>
       </main>
+      <HelpManual />
     </div>
   );
 }

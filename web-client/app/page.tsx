@@ -4,9 +4,12 @@ import Link from "next/link";
 import Header from "@/components/header";
 import CompareButton from "@/components/compare_button";
 import LoadButton from "@/components/load_button";
+import HelpManual from "@/components/help_button";
 
 export default function HomePage() {
   const [hovered, setHovered] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("Home"); // Default tab
 
   const cardStyle = (id: string): React.CSSProperties => ({
     boxSizing: 'border-box',
@@ -35,8 +38,22 @@ export default function HomePage() {
     onMouseLeave: () => setHovered(null),
   });
 
+  // Help Modal Tab Styles
+  const tabStyle = (id: string): React.CSSProperties => ({
+    padding: '8px 12px',
+    fontSize: '12px',
+    fontWeight: 500,
+    cursor: 'pointer',
+    border: 'none',
+    borderRadius: '6px',
+    background: activeTab === id ? '#185FA5' : 'transparent',
+    color: activeTab === id ? '#fff' : '#6b7280',
+    transition: '0.2s',
+    whiteSpace: 'nowrap'
+  });
+
   return (
-    <div style={{ minHeight: '100vh', background: '#f6f8fb', fontFamily: 'sans-serif' }}>
+    <div style={{ minHeight: '100vh', background: '#f6f8fb', fontFamily: 'sans-serif', position: 'relative' }}>
       <Header />
       <div style={{ maxWidth: 480, margin: '0 auto', padding: '4rem 1.5rem 0' }}>
         <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
@@ -49,7 +66,6 @@ export default function HomePage() {
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-
           <Link href="/configure" style={cardStyle('configure')} {...hoverProps('configure')}>
             <div style={{ flex: 1 }}>
               <p style={{ margin: 0, fontSize: 14, fontWeight: 500, color: '#111827' }}>Configure scenario</p>
@@ -77,9 +93,9 @@ export default function HomePage() {
               <span style={{ color: '#9ca3af', fontSize: '18px' }}>›</span>
             </CompareButton>
           </div>
-
         </div>
       </div>
+      <HelpManual />
     </div>
   );
 }

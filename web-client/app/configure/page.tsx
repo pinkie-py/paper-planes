@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/header";
+import HelpManual from "@/components/help_button";
 
 const DS_BLUE = "#004696";
 const BORDER = "#d0d7de";
@@ -309,6 +310,7 @@ const Configure: React.FC = () => {
           </div>
         </section>
       </main>
+      <HelpManual />
     </div>
   );
 };

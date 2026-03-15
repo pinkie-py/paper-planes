@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/header";
+import HelpManual from "@/components/help_button";
 
 const DS_BLUE = "#004696";
 const TEXT = "#1f2937";
@@ -1648,6 +1649,8 @@ export default function SimulationPage() {
           </div>
         </section>
       </main>
+      <HelpManual />
     </div>
   );
+
 }
