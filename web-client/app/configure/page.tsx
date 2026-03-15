@@ -180,13 +180,13 @@ const Configure: React.FC = () => {
             <div style={{ display: "grid", gap: "15px", marginBottom: "25px" }}>
               <div>
                 <InputBlock label={`Runway Failure Probability (Max ${max_probability}%)`} name="runwayProb" value={formData.runwayProb} onChange={handleChange} min="0" max={max_probability} step="0.1" />
-                {errorField === "runwayProb_max" && <ErrorMessage limit={max_probability} />}
+                {errorField === "runwayProb_max" && <PercentageErrorMessage limit={max_probability} />}
                 {errorField === "runwayProb_min" && <MinErrorMessage msg="Probability cannot be less than 0%." />}
               </div>
 
               <div>
                 <InputBlock label={`Aircraft Emergency Probability (Max ${max_probability}%)`} name="aircraftProb" value={formData.aircraftProb} onChange={handleChange} min="0" max={max_probability} step="0.1" />
-                {errorField === "aircraftProb_max" && <ErrorMessage limit={max_probability} />}
+                {errorField === "aircraftProb_max" && <PercentageErrorMessage limit={max_probability} />}
                 {errorField === "aircraftProb_min" && <MinErrorMessage msg="Probability cannot be less than 0%." />}
               </div>
             </div>
@@ -453,6 +453,12 @@ const selectStyle: React.CSSProperties = { padding: "8px 12px", borderRadius: "6
 const applyButtonStyle: React.CSSProperties = { padding: "12px 30px", background: DS_BLUE, color: "white", border: "none", borderRadius: "8px", fontWeight: "700", cursor: "pointer" };
 
 const ErrorMessage = ({ limit }: { limit: number }) => (
+  <p style={{ color: "#dc2626", fontSize: "12px", marginTop: "-10px", marginBottom: "5px", fontWeight: "600" }}>
+    Maximum {limit} allowed.
+  </p>
+);
+
+const PercentageErrorMessage = ({ limit }: { limit: number }) => (
   <p style={{ color: "#dc2626", fontSize: "12px", marginTop: "-10px", marginBottom: "5px", fontWeight: "600" }}>
     Maximum {limit}% allowed.
   </p>
