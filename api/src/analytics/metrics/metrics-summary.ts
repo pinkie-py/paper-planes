@@ -1,3 +1,7 @@
+/**
+ * Interfaces representing the aggregated mathematical results of a single simulation run.
+ */
+
 export interface QueueStats {
   avgHoldingSize: number;
   maxHoldingSize: number;
@@ -21,6 +25,9 @@ export interface OutcomeCounts {
   fuelEmergencyCount: number;
 }
 
+/**
+ * The master wrapper object containing all computed metrics for a given run.
+ */
 export interface MetricsSummary {
   queue: QueueStats;
   time: TimeStats;

@@ -1,7 +1,10 @@
 import { AircraftState, EmergencyStatus, FlightType } from "./types";
 
+/**
+ * Represents a single aircraft moving through the simulation.
+ * Tracks its lifecycle, fuel, schedule, and any emergencies.
+ */
 export class Aircraft {
-
   private aircraftID: string;
   private operator: string;
   private type: FlightType;
@@ -31,6 +34,10 @@ export class Aircraft {
     this.state = AircraftState.ENTERING_SIM;
   }
 
+  /**
+   * Safely transitions the aircraft to a new state.
+   * Prevents any state changes if the aircraft has reached a terminal state.
+   */
   public transitionTo(s: AircraftState): void {
     if (
       this.state === AircraftState.EXITED ||
@@ -39,44 +46,49 @@ export class Aircraft {
     ) {
       return;
     }
-
     this.state = s;
   }
 
   public consumeFuel(delta: number): void {
-    // consumes fuel by delta minutes
     this.updateFuel(-delta);
   }
 
+  /**
+   * Updates fuel and automatically declares an emergency if it drops to critical levels.
+   */
   public updateFuel(delta: number): void {
     this.fuelRemaining = Math.max(0, this.fuelRemaining + delta);
 
-    // Auto-flag fuel emergency if below threshold 
+    // Business Rule: Auto-flag fuel emergency if 10 mins or less remaining
     if (this.fuelRemaining <= 10 && this.emergencyStatus === EmergencyStatus.NONE) {
       this.emergencyStatus = EmergencyStatus.FUEL;
     }
   }
 
+  /**
+   * Evaluates if an outbound aircraft has been waiting in the queue for too long.
+   */
   public checkWaitTime(t: Date): void {
-    // Cancellation is relevant for OUTBOUND aircraft waiting for takeoff.
     if (this.type !== FlightType.OUTBOUND) return;
     if (this.state !== AircraftState.TAKEOFF_QUEUE) return;
 
     const waitedMs = t.getTime() - this.scheduledTime.getTime();
     const waitedMin = waitedMs / (60 * 1000);
 
-    //  cancel if waitTime > 30 minutes
+    // Business Rule: Hard cancellation if wait time exceeds 30 minutes
     if (waitedMin > 30) {
       this.transitionTo(AircraftState.CANCELLED);
     }
   }
 
-  // ADDED: Probability trigger for natural emergencies
+  /**
+   * Rolls a stochastic dice based on configured probabilities to spawn unexpected emergencies.
+   */
   public triggerRandomEmergency(probability: number): boolean {
     if (this.emergencyStatus !== EmergencyStatus.NONE) return false;
 
     if (Math.random() < probability) {
-      // 50/50 split between mechanical and passenger health
+      // 50/50 split between mechanical and passenger health issues
       this.emergencyStatus = Math.random() < 0.5 
         ? EmergencyStatus.MECHANICAL_FAILURE 
         : EmergencyStatus.PASSENGER_HEALTH;
@@ -89,39 +101,14 @@ export class Aircraft {
     return this.emergencyStatus !== EmergencyStatus.NONE;
   }
 
-  public getState(): AircraftState {
-    return this.state;
-  }
-
-  public getAircraftID(): string {
-    return this.aircraftID;
-  }
-
-  public getOperator(): string {
-    return this.operator;
-  }
-
-  public getScheduledTime(): Date {
-    return this.scheduledTime;
-  }
-
-  public getActualTime(): Date {
-    return this.actualTime;
-  }
-
-  public setActualTime(t: Date): void {
-    this.actualTime = t;
-  }
-
-  public getFuelRemaining(): number {
-    return this.fuelRemaining;
-  }
-
-  public getEmergencyStatus(): EmergencyStatus {
-    return this.emergencyStatus;
-  }
-
-  public getType(): FlightType {
-    return this.type;
-  }
+  // ... [Standard Getters/Setters] ...
+  public getState(): AircraftState { return this.state; }
+  public getAircraftID(): string { return this.aircraftID; }
+  public getOperator(): string { return this.operator; }
+  public getScheduledTime(): Date { return this.scheduledTime; }
+  public getActualTime(): Date { return this.actualTime; }
+  public setActualTime(t: Date): void { this.actualTime = t; }
+  public getFuelRemaining(): number { return this.fuelRemaining; }
+  public getEmergencyStatus(): EmergencyStatus { return this.emergencyStatus; }
+  public getType(): FlightType { return this.type; }
 }

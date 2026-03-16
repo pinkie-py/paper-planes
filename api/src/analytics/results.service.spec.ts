@@ -2,6 +2,10 @@ import { ResultsService } from "./results.service";
 import { AircraftState, EmergencyStatus, FlightType } from "../domain/types";
 import type { RunResult } from "./dto/run-result.dto";
 
+/**
+ * Ensures the NestJS ResultsService correctly wraps the underlying formatter functions.
+ */
+
 function mkRun(seed: string): RunResult {
   return {
     config: {

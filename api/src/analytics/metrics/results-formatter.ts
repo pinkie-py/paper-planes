@@ -7,6 +7,9 @@ import type {
 import type { MetricsSummary } from "./metrics-summary";
 import { computeMetrics } from "./metrics-calculator";
 
+/**
+ * Extracts configuration details from the first run to serve as the master scenario summary.
+ */
 function buildScenarioSummary(runs: RunResult[]): ScenarioSummary {
   const first = runs[0];
 
@@ -21,71 +24,38 @@ function buildScenarioSummary(runs: RunResult[]): ScenarioSummary {
   };
 }
 
+/**
+ * Pivots the metrics. Takes an array of MetricsSummary (one per run) and maps them into
+ * MetricRow objects. Each MetricRow represents a single label (e.g., "Cancellations") 
+ * and an array of values across all runs, perfectly formatted for a frontend HTML table.
+ */
 function buildMetricRows(metrics: MetricsSummary[]): MetricRow[] {
   return [
-    {
-      label: "Fuel Emergency Events",
-      values: metrics.map((m) => m.counts.fuelEmergencyCount),
-    },
-    {
-      label: "Aircraft Diversions",
-      values: metrics.map((m) => m.counts.divertedCount),
-    },
-    {
-      label: "Cancellations",
-      values: metrics.map((m) => m.counts.cancelledCount),
-    },
-    {
-      label: "Avg Landing Queue size",
-      values: metrics.map((m) => m.queue.avgHoldingSize),
-    },
-    {
-      label: "Max Landing Queue size",
-      values: metrics.map((m) => m.queue.maxHoldingSize),
-    },
-    {
-      label: "Avg Take-Off Queue size",
-      values: metrics.map((m) => m.queue.avgTakeoffQueueSize),
-    },
-    {
-      label: "Max Take-Off Queue size",
-      values: metrics.map((m) => m.queue.maxTakeoffQueueSize),
-    },
-    {
-      label: "Avg Waiting Time (arrival) / mins",
-      values: metrics.map((m) => m.time.avgHoldingTime),
-    },
-    {
-      label: "Max Waiting Time (arrival) / mins",
-      values: metrics.map((m) => m.time.maxHoldingTime),
-    },
-    {
-      label: "Avg Waiting Time (departure) / mins",
-      values: metrics.map((m) => m.time.avgTakeoffWait),
-    },
-    {
-      label: "Max Waiting Time (departure) / mins",
-      values: metrics.map((m) => m.time.maxTakeoffWait),
-    },
-    {
-      label: "Avg Delay / mins",
-      values: metrics.map((m) => m.time.avgDelay),
-    },
-    {
-      label: "Max Delay / mins",
-      values: metrics.map((m) => m.time.maxDelay),
-    },
-    {
-      label: "Aircraft Processed",
-      values: metrics.map((m) => m.counts.processedCount),
-    },
+    { label: "Fuel Emergency Events", values: metrics.map((m) => m.counts.fuelEmergencyCount) },
+    { label: "Aircraft Diversions", values: metrics.map((m) => m.counts.divertedCount) },
+    { label: "Cancellations", values: metrics.map((m) => m.counts.cancelledCount) },
+    { label: "Avg Landing Queue size", values: metrics.map((m) => m.queue.avgHoldingSize) },
+    { label: "Max Landing Queue size", values: metrics.map((m) => m.queue.maxHoldingSize) },
+    { label: "Avg Take-Off Queue size", values: metrics.map((m) => m.queue.avgTakeoffQueueSize) },
+    { label: "Max Take-Off Queue size", values: metrics.map((m) => m.queue.maxTakeoffQueueSize) },
+    { label: "Avg Waiting Time (arrival) / mins", values: metrics.map((m) => m.time.avgHoldingTime) },
+    { label: "Max Waiting Time (arrival) / mins", values: metrics.map((m) => m.time.maxHoldingTime) },
+    { label: "Avg Waiting Time (departure) / mins", values: metrics.map((m) => m.time.avgTakeoffWait) },
+    { label: "Max Waiting Time (departure) / mins", values: metrics.map((m) => m.time.maxTakeoffWait) },
+    { label: "Avg Delay / mins", values: metrics.map((m) => m.time.avgDelay) },
+    { label: "Max Delay / mins", values: metrics.map((m) => m.time.maxDelay) },
+    { label: "Aircraft Processed", values: metrics.map((m) => m.counts.processedCount) },
   ];
 }
 
+/**
+ * Assembles the final response payload for the frontend using pre-computed metrics.
+ */
 export function formatResultsResponseFromMetrics(
   runs: RunResult[],
   metrics: MetricsSummary[],
 ): ResultsResponse {
+  // Graceful fallback if no runs are provided
   if (runs.length === 0) {
     return {
       scenario: {
@@ -106,6 +76,9 @@ export function formatResultsResponseFromMetrics(
   };
 }
 
+/**
+ * The primary entry point. Calculates metrics for all runs and then formats them for the UI.
+ */
 export function formatResultsResponse(runs: RunResult[]): ResultsResponse {
   const metrics = runs.map((run) => computeMetrics(run));
   return formatResultsResponseFromMetrics(runs, metrics);
