@@ -1,21 +1,22 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { json, urlencoded } from 'express';
+import { NestFactory } from "@nestjs/core";
+import { AppModule } from "./app.module";
+import { json, urlencoded } from "express";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  
-  // Enable CORS so the React frontend can talk to this API
-  app.enableCors({
-    origin: 'http://localhost:3001', // Explicitly allow your frontend
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    credentials: true,
-  });
+    const app = await NestFactory.create(AppModule);
 
-  // INCREASE THE PAYLOAD LIMIT TO 50MB
-  app.use(json({ limit: '50mb' }));
-  app.use(urlencoded({ extended: true, limit: '50mb' }));
+    // Enable CORS so the React frontend can talk to this API
+    app.enableCors({
+        origin: "http://localhost:3001", // Explicitly allow your frontend
+        methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+        credentials: true
+    });
 
-  await app.listen(3000);
+    // INCREASE THE PAYLOAD LIMIT TO 50MB
+    app.use(json({ limit: "50mb" }));
+    app.use(urlencoded({ extended: true, limit: "50mb" }));
+    app.enableCors();
+
+    await app.listen(3000);
 }
 bootstrap();
