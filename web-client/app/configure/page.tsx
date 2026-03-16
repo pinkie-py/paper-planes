@@ -9,7 +9,7 @@ const DS_BLUE = "#004696";
 const BORDER = "#d0d7de";
 const TEXT_DARK = "#1a1f36";
 
-const max_runways = 10;
+const max_runways = 25;
 const max_inbound_flow_per_hour = 250;
 const max_outbound_flow_per_hour = 250;
 const max_runs = 50;

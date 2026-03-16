@@ -57,16 +57,11 @@ export type SimulationSnapshot = {
   log: SnapshotLogEntry[];
 };
 
-/**
- * The core simulation engine. Manages the clock, the queues, and the active runways.
- */
 export class Simulation {
-  // Time tracking
   private currentTime: Date;
   private startTimeMs: number;
   private elapsedMinutes = 0;
 
-  // Queues and Lists
   private holdingPattern: Aircraft[] = [];
   private takeoffQueue: Aircraft[] = [];
   private completedFlights: Aircraft[] = [];
@@ -75,61 +70,50 @@ export class Simulation {
   private runways: Runway[];
   private log: SnapshotLogEntry[] = [];
 
-  // Master tracking for Analytics/Metrics
   private allAircraft: Aircraft[] = [];
   private historyTicks: any[] = [];
 
   private aircraftCounter = 0;
-  private readonly occupancyDurationMs = 3 * 60 * 1000; // 3 minutes to process a plane
+  private readonly occupancyDurationMs = 3 * 60 * 1000;
 
-  // Event Trackers
+  // Track natural closures to restore them later: { runwayNumber: recoveryTimeMs }
   private naturalClosures = new Map<string, number>();
+ 
+  // ADDED: Track active scheduled closures so we know when to end them: { runwayNumber: endMinute }
   private activeScheduledClosures = new Map<string, number>();
 
   constructor(private config: SimulationConfig) {
     this.currentTime = new Date();
     this.startTimeMs = this.currentTime.getTime();
-    this.runways = config.runways.map((r) => new Runway(r.id, r.mode, r.status));
+    this.runways = config.runways.map(
+      (r) => new Runway(r.id, r.mode, r.status)
+    );
     this.logEvent("Simulation initialized");
   }
 
-/**
-   * The master loop. Executes exactly one simulated minute of operations per call.
-   * Order of operations is CRITICAL here to prevent statistical skipping.
-   */
   public step(): void {
     if (this.isFinished()) return;
 
     this.elapsedMinutes += 1;
     this.currentTime = new Date(this.currentTime.getTime() + 60 * 1000);
 
-    // 1. Free up runways that have finished processing their planes
     this.runways.forEach((r) => r.isAvailable(this.currentTime));
 
-    // 2. Process deterministic scheduled closures (e.g. Snow Clearance)
-    this.processScheduledEvents(); 
-    
-    // 3. Roll stochastic dice for random emergencies (e.g. Equipment Failure)
+    this.processScheduledEvents(); // <-- ADDED THIS: Check for scheduled closures starting/ending
     this.triggerNaturalEvents(); 
 
-    // 4. Generate new planes based on flow rates
     this.spawnTraffic();
-    
-    // 5. Burn fuel and check for timeout cancellations in the queues
     this.updateAircraft();
-    
-    // 6. If the airport is totally shut down, dump the queues
     this.checkGlobalRunwayClosure();
-    
-    // 7. Pull planes from the queues and assign them to available runways
     this.allocateRunways();
 
-    // 8. Take a snapshot of queue sizes for the analytics engine
     this.historyTicks.push({
       minute: this.elapsedMinutes,
       holdingCount: this.holdingPattern.length,
       takeoffQueueCount: this.takeoffQueue.length,
-      occupiedRunwaysCount: this.runways.filter((r) => r.getStatus() === RunwayStatus.OCCUPIED).length,
+      occupiedRunwaysCount: this.runways.filter(
+        (r) => r.getStatus() === RunwayStatus.OCCUPIED
+      ).length,
     });
   }
   public run(): any {
@@ -325,23 +309,21 @@ export class Simulation {
       this.allAircraft.push(ac);
     }
   }
-
-  /**
-   * Processes deterministic, user-configured closures based on the elapsed minute.
-   */
+  // ADDED: Processes configured schedules
   private processScheduledEvents() {
-    // End scheduled closures if duration has elapsed
+    // 1. End scheduled closures if duration has elapsed
     for (const [runwayNum, endMinute] of this.activeScheduledClosures.entries()) {
       if (this.elapsedMinutes >= endMinute) {
         const target = this.runways.find(r => this.extractRunwayNumber(r.getRunwayNumber()) === runwayNum);
         if (target && target.getStatus() !== RunwayStatus.AVAILABLE && target.getStatus() !== RunwayStatus.OCCUPIED) {
             target.setStatus(RunwayStatus.AVAILABLE);
+            this.logEvent(`SCHEDULE RECOVERY: ${target.getRunwayNumber()} has recovered and is now AVAILABLE`);
         }
         this.activeScheduledClosures.delete(runwayNum);
       }
     }
 
-    // Start scheduled closures if their minute has arrived
+    // 2. Start scheduled closures if their time has come
     const startingNow = this.config.scheduledClosures?.filter(c => c.startMinute === this.elapsedMinutes) || [];
     for (const closure of startingNow) {
       const rNum = this.extractRunwayNumber(closure.runwayId);
@@ -351,22 +333,20 @@ export class Simulation {
         const reason = closure.reason as RunwayStatus;
         if (target.getStatus() === RunwayStatus.OCCUPIED) {
             target.queueStatusChange(reason);
+            this.logEvent(`SCHEDULED CLOSURE: ${target.getRunwayNumber()} will suffer ${reason} after current aircraft clears`);
         } else {
             target.setStatus(reason);
+            this.logEvent(`SCHEDULED CLOSURE: ${target.getRunwayNumber()} suffered ${reason}`);
         }
         
-        // Remove from natural closures so a random event doesn't accidentally "recover" a scheduled event early
+        // Remove from natural closures so a natural event doesn't accidentally "recover" a scheduled event
         this.naturalClosures.delete(rNum);
         this.activeScheduledClosures.set(rNum, closure.startMinute + closure.durationMinutes);
       }
     }
   }
-
-  /**
-   * Processes stochastic (random) events based on configured probability percentages.
-   */
   private triggerNaturalEvents() {
-    // 1. Recover runways whose random downtime has expired
+    // 1. Check if any natural closures have expired (restore runway)
     for (const [runwayNum, recoveryTime] of this.naturalClosures.entries()) {
       if (this.currentTime.getTime() >= recoveryTime) {
         const target = this.runways.find(r => this.extractRunwayNumber(r.getRunwayNumber()) === runwayNum);
@@ -374,6 +354,7 @@ export class Simulation {
         // Only recover it if it isn't currently under a SCHEDULED closure
         if (target && !this.activeScheduledClosures.has(runwayNum) && target.getStatus() !== RunwayStatus.AVAILABLE && target.getStatus() !== RunwayStatus.OCCUPIED) {
             target.setStatus(RunwayStatus.AVAILABLE);
+            this.logEvent(`${target.getRunwayNumber()} has recovered naturally and is now AVAILABLE`);
         }
         this.naturalClosures.delete(runwayNum);
       }
@@ -394,11 +375,12 @@ export class Simulation {
              
              if (r.getStatus() === RunwayStatus.OCCUPIED) {
                  r.queueStatusChange(newStatus);
+                 this.logEvent(`${r.getRunwayNumber()} will suffer ${newStatus} after current aircraft clears`);
              } else {
                  r.setStatus(newStatus);
+                 this.logEvent(`${r.getRunwayNumber()} suffered ${newStatus}`);
              }
              
-             // Randomize a recovery time between 10 and 30 minutes
              const recoveryMinutes = Math.floor(Math.random() * 20) + 10;
              const recoveryMs = this.currentTime.getTime() + (recoveryMinutes * 60 * 1000);
              this.naturalClosures.set(rNum, recoveryMs);
@@ -406,48 +388,53 @@ export class Simulation {
       }
     });
 
-    // 3. Roll for aircraft emergencies
+    // 3. Roll for aircraft emergencies (unchanged)
     const aircraftProb = this.config.aircraftEmergencyProbability ?? 0.002; 
     this.holdingPattern.forEach(ac => {
-        ac.triggerRandomEmergency(aircraftProb);
+        if (ac.triggerRandomEmergency(aircraftProb)) {
+            this.logEvent(`EMERGENCY: ${ac.getAircraftID()} declared ${ac.getEmergencyStatus()}`);
+        }
     });
   }
 
-  /**
-   * Burns fuel for holding planes, and processes timeouts for the queues.
-   */
   private updateAircraft() {
     for (let i = this.holdingPattern.length - 1; i >= 0; i--) {
       const ac = this.holdingPattern[i];
-      ac.consumeFuel(1); // Burns 1 minute of fuel
+      ac.consumeFuel(1);
 
-      // Terminal State: Ran completely out of fuel
+      if (ac.getFuelRemaining() < 10 && ac.getEmergencyStatus() !== EmergencyStatus.FUEL) {
+        this.logEvent(`EMERGENCY: ${ac.getAircraftID()} declared FUEL emergency`);
+      }
+
       if (ac.getFuelRemaining() <= 0) {
         ac.transitionTo(AircraftState.DIVERTED);
         ac.setActualTime(this.currentTime);
         this.divertedFlights.push(ac);
         this.holdingPattern.splice(i, 1);
+        this.logEvent(`${ac.getAircraftID()} diverted due to critically low fuel`);
       }
     }
 
     for (let i = this.takeoffQueue.length - 1; i >= 0; i--) {
       const ac = this.takeoffQueue[i];
-      ac.checkWaitTime(this.currentTime); // Triggers cancellation if > 30 mins
+      ac.checkWaitTime(this.currentTime);
 
       if (ac.getState() === AircraftState.CANCELLED) {
         ac.setActualTime(this.currentTime); 
         this.cancelledFlights.push(ac);
         this.takeoffQueue.splice(i, 1);
+        this.logEvent(
+          `${ac.getAircraftID()} cancelled after excessive wait`
+        );
       }
     }
   }
 
-  /**
-   * Safety catch: If all runways are broken, immediately clear the sky and the ground.
-   */
   private checkGlobalRunwayClosure() {
     const hasAvailableRunway = this.runways.some(
-      (r) => r.getStatus() === RunwayStatus.AVAILABLE || r.getStatus() === RunwayStatus.OCCUPIED
+      (r) =>
+        r.getStatus() === RunwayStatus.AVAILABLE ||
+        r.getStatus() === RunwayStatus.OCCUPIED
     );
 
     if (!hasAvailableRunway) {
@@ -462,14 +449,17 @@ export class Simulation {
         this.cancelledFlights.push(ac);
       });
 
+      if (this.holdingPattern.length || this.takeoffQueue.length) {
+        this.logEvent(
+          "All runways unavailable — holding aircraft diverted and outbound aircraft cancelled"
+        );
+      }
+
       this.holdingPattern = [];
       this.takeoffQueue = [];
     }
   }
 
-  /**
-   * Pulls planes from queues and assigns them to available runways based on mode and priority.
-   */
   private allocateRunways() {
     for (const runway of this.runways) {
       if (!runway.isAvailable(this.currentTime)) continue;
@@ -482,9 +472,6 @@ export class Simulation {
       } else if (mode === RunwayMode.TAKEOFF) {
         assignedAircraft = this.popNextOutbound();
       } else if (mode === RunwayMode.MIXED) {
-        // Mixed Mode Logic:
-        // 1. ALWAYS check for inbound emergencies first (emergencyOnly = true)
-        // 2. Otherwise, serve whichever queue is currently longest
         assignedAircraft =
           this.popNextInbound(true) ||
           (this.takeoffQueue.length > this.holdingPattern.length
@@ -493,7 +480,6 @@ export class Simulation {
           this.popNextOutbound();
       }
 
-      // If a plane was successfully popped from a queue, lock the runway
       if (assignedAircraft) {
         assignedAircraft.transitionTo(AircraftState.RUNWAY);
         assignedAircraft.setActualTime(this.currentTime);
@@ -504,18 +490,24 @@ export class Simulation {
         );
 
         this.completedFlights.push(assignedAircraft);
+
+        const action =
+          assignedAircraft.getType() === FlightType.INBOUND
+            ? "landing"
+            : "take-off";
+        this.logEvent(
+          `${assignedAircraft.getAircraftID()} assigned to ${runway.getRunwayNumber()} for ${action}`
+        );
       }
     }
   }
 
-  /**
-   * Safely retrieves the next inbound flight from the holding pattern.
-   * Scans for emergencies first and bypasses the FIFO queue if one is found.
-   */
   private popNextInbound(emergencyOnly = false): Aircraft | null {
     if (this.holdingPattern.length === 0) return null;
 
-    const emergencyIndex = this.holdingPattern.findIndex((ac) => ac.isEmergency());
+    const emergencyIndex = this.holdingPattern.findIndex((ac) =>
+      ac.isEmergency()
+    );
     if (emergencyIndex !== -1) {
       return this.holdingPattern.splice(emergencyIndex, 1)[0];
     }

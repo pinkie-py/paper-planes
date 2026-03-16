@@ -2,12 +2,6 @@ import { AircraftState, EmergencyStatus, FlightType } from "../../domain/types";
 import type { RunResult } from "../dto/run-result.dto";
 import { formatResultsResponse } from "./results-formatter";
 
-/**
- * Tests the `results-formatter` to ensure that data pivoting works correctly.
- * Verifies that the correct number of rows are created, that the labels match 
- * exactly what the frontend expects, and that values are mapped to the correct columns (runs).
- */
-
 function mkRun(seed: string, holdingMinutesA2: number, processedCountVariant = 0): RunResult {
   return {
     config: {
